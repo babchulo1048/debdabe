@@ -44,7 +44,7 @@ export function toEthiopian(y: number, m: number, d: number): EthDate {
 
 export function ethiopianToJdn(year: number, month: number, day: number): number {
   return (
-    ETHIOPIAN_EPOCH + 365 * (year - 1) + Math.floor(year / 4) + 30 * (month - 1) + day - 1
+    ETHIOPIAN_EPOCH + 365 * year + Math.floor(year / 4) + 30 * (month - 1) + day - 1
   );
 }
 
