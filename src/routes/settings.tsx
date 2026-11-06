@@ -24,7 +24,7 @@ import {
 } from "@/lib/data";
 import { isoToEthYear, todayAddisIso } from "@/lib/ethiopianCalendar";
 import { useT } from "@/lib/i18n";
-import { formatReference } from "@/lib/letters";
+import { defaultSender, formatReference } from "@/lib/letters";
 import { uploadOrgFile, useSignedUrl } from "@/lib/storage";
 
 export const Route = createFileRoute("/settings")({
@@ -289,6 +289,7 @@ function LetterheadForm({ me }: { me: Me }) {
             body: ["[የደብዳቤው ዋና ጽሑፍ እዚህ ይገባል።]"],
             cc: ["ለማህደር"],
             signatory: null,
+            sender: defaultSender(me.org, null),
           }}
         />
       </ScaledSheet>

@@ -3,8 +3,19 @@ import type { Session } from "@supabase/supabase-js";
 
 import { supabase } from "@/integrations/supabase/client";
 
-export { DEMO_EMAIL, DEMO_PASSWORD } from "@/lib/mock/seed";
-import { DEMO_EMAIL, DEMO_PASSWORD } from "@/lib/mock/seed";
+import { USING_MOCK } from "@/integrations/supabase/client";
+import { DEMO_EMAIL as MOCK_EMAIL, DEMO_PASSWORD as MOCK_PASSWORD } from "@/lib/mock/seed";
+
+/**
+ * Demo account. Mock mode: built in. Real Supabase: set VITE_DEMO_PASSWORD (and sign up once
+ * as demo@debdabe.app); without it the demo button is hidden.
+ */
+export const DEMO_EMAIL = USING_MOCK
+  ? MOCK_EMAIL
+  : ((import.meta.env["VITE_DEMO_EMAIL"] as string | undefined) ?? MOCK_EMAIL);
+export const DEMO_PASSWORD = USING_MOCK
+  ? MOCK_PASSWORD
+  : ((import.meta.env["VITE_DEMO_PASSWORD"] as string | undefined) ?? "");
 
 /** Current Supabase session; `undefined` while the first check is running. */
 export function useSession() {

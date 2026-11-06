@@ -10,10 +10,12 @@ import {
   Search,
   Sparkles,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
 import { AppShell, PageTitle } from "@/components/AppShell";
+import { LetterSheet, ScaledSheet } from "@/components/LetterSheet";
+import { missingSender, SenderFields } from "@/components/SenderFields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,7 +35,14 @@ import {
 } from "@/lib/data";
 import { isoToEthiopianString, todayAddisIso } from "@/lib/ethiopianCalendar";
 import { useT } from "@/lib/i18n";
-import { fillTemplate, type Recipient, type TemplateField } from "@/lib/letters";
+import {
+  defaultSender,
+  fillTemplate,
+  writeSender,
+  type Recipient,
+  type Sender,
+  type TemplateField,
+} from "@/lib/letters";
 import {
   callModel,
   loadEngineSettings,
@@ -100,6 +109,7 @@ function useCreateDraft(me: Me) {
     recipient?: Json;
     cc?: string[];
     field_values?: Record<string, string>;
+    signatory_id?: string | null;
     ai_prompt?: string;
     ai_output?: Json;
   }) => {
@@ -115,7 +125,8 @@ function useCreateDraft(me: Me) {
         recipient: row.recipient ?? {},
         cc: row.cc ?? [],
         field_values: row.field_values ?? {},
-        signatory_id: signatories.data?.[0]?.id ?? null,
+        signatory_id:
+          row.signatory_id !== undefined ? row.signatory_id : (signatories.data?.[0]?.id ?? null),
         letter_date: todayAddisIso(),
         created_by: me.userId,
         ai_prompt: row.ai_prompt ?? null,
@@ -240,8 +251,18 @@ function SmartForm({ me }: { me: Me }) {
   const templates = useTemplates();
   const contacts = useContacts();
   const createDraft = useCreateDraft(me);
+  const signatories = useSignatories();
   const [text, setText] = useState("");
   const [submitted, setSubmitted] = useState("");
+  // Letterhead + signer: from Settings until the user changes them for this letter.
+  const [signatoryId, setSignatoryId] = useState<string | null | undefined>(undefined);
+  const [senderEdit, setSenderEdit] = useState<Sender | null>(null);
+  const signatoryList = signatories.data ?? [];
+  const chosenSignatoryId =
+    signatoryId === undefined ? (signatoryList[0]?.id ?? null) : signatoryId;
+  const signatory = signatoryList.find((x) => x.id === chosenSignatoryId) ?? null;
+  const sender = senderEdit ?? defaultSender(me.org, signatory);
+  const senderMissing = missingSender(sender);
   const [pickedId, setPickedId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [{ engine, url }, setSettings] = useState(loadEngineSettings);
@@ -301,11 +322,16 @@ function SmartForm({ me }: { me: Me }) {
 
   function editRecipient(name: string) {
     const c = contactList.find((x) => x.type === "recipient" && x.name === name);
+    const cur = recipientEdit ?? result?.recipient ?? {};
     setRecipientEdit(
       c
         ? { name: c.name, title: c.title ?? "", city: c.city ?? "" }
-        : { name, title: "", city: "" },
+        : { name, title: cur.title ?? "", city: cur.city ?? "" },
     );
+  }
+
+  function editRecipientPart(part: "title" | "city", v: string) {
+    setRecipientEdit({ ...(recipientEdit ?? result?.recipient ?? { name: "" }), [part]: v });
   }
 
   function setEngine(next: Engine, nextUrl = url) {
@@ -374,7 +400,8 @@ function SmartForm({ me }: { me: Me }) {
         source: "ai",
         subject: tpl.subject_am,
         body,
-        field_values: values,
+        field_values: writeSender(values, sender),
+        signatory_id: chosenSignatoryId,
         ...(recipient ? { recipient } : {}),
         ai_prompt: submitted,
         ai_output: output,
@@ -395,44 +422,50 @@ function SmartForm({ me }: { me: Me }) {
   }
 
   return (
-    <div className="grid max-w-[760px] gap-4">
+    <div className="grid gap-4 [&>*:not(section)]:max-w-[760px]">
       <form onSubmit={understand} className="grid gap-3 rounded-lg border bg-card p-5">
-        <div className="flex flex-wrap items-center gap-2 rounded-md border border-dashed p-2 text-xs">
-          <span className="text-muted-foreground">{t("Engine:", "ሞተር፡")}</span>
-          {(["rules", "model"] as const).map((e) => (
-            <button
-              key={e}
-              type="button"
-              aria-pressed={engine === e}
-              onClick={() => setEngine(e)}
-              className={`rounded px-2.5 py-1 ${engine === e ? "bg-primary text-primary-foreground" : "border text-muted-foreground"}`}
-            >
-              {e === "rules" ? t("Rules (v0)", "ህጎች (v0)") : t("Model", "ሞዴል")}
-            </button>
-          ))}
-          {engine === "model" && (
-            <>
-              <Input
-                aria-label={t("Model link", "የሞዴል ሊንክ")}
-                placeholder="https://….trycloudflare.com"
-                value={url}
-                onChange={(e) => setSettings({ engine, url: e.target.value })}
-                onBlur={() => saveEngineSettings(engine, url)}
-                className="h-7 min-w-[240px] flex-1 font-mono text-xs"
-              />
-              <Button
+        <details className="order-last text-xs text-muted-foreground">
+          <summary className="w-fit cursor-pointer select-none">
+            {t("Engine:", "ሞተር፡")}{" "}
+            {engine === "rules" ? t("Rules (v0)", "ህጎች (v0)") : t("Model", "ሞዴል")}
+            {engine === "model" && !url && ` · ${t("no link set", "ሊንክ አልተሰጠም")}`}
+          </summary>
+          <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md border border-dashed p-2">
+            {(["rules", "model"] as const).map((e) => (
+              <button
+                key={e}
                 type="button"
-                size="sm"
-                variant="outline"
-                className="h-7"
-                onClick={checkConnection}
+                aria-pressed={engine === e}
+                onClick={() => setEngine(e)}
+                className={`rounded px-2.5 py-1 ${engine === e ? "bg-primary text-primary-foreground" : "border text-muted-foreground"}`}
               >
-                {t("Check", "አረጋግጥ")}
-              </Button>
-              {status && <span className="w-full text-muted-foreground">{status}</span>}
-            </>
-          )}
-        </div>
+                {e === "rules" ? t("Rules (v0)", "ህጎች (v0)") : t("Model", "ሞዴል")}
+              </button>
+            ))}
+            {engine === "model" && (
+              <>
+                <Input
+                  aria-label={t("Model link", "የሞዴል ሊንክ")}
+                  placeholder="https://….trycloudflare.com"
+                  value={url}
+                  onChange={(e) => setSettings({ engine, url: e.target.value })}
+                  onBlur={() => saveEngineSettings(engine, url)}
+                  className="h-7 min-w-[240px] flex-1 font-mono text-xs"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-7"
+                  onClick={checkConnection}
+                >
+                  {t("Check", "አረጋግጥ")}
+                </Button>
+                {status && <span className="w-full text-muted-foreground">{status}</span>}
+              </>
+            )}
+          </div>
+        </details>
         <Label htmlFor="smart-text">
           {t(
             "What letter do you need? One sentence is enough.",
@@ -546,131 +579,194 @@ function SmartForm({ me }: { me: Me }) {
             )}
           </div>
 
-          <datalist id="smart-contacts">
-            {contactList
-              .filter((c) => c.type === "recipient")
-              .map((c) => (
-                <option key={c.id} value={c.name} />
-              ))}
-          </datalist>
-          <div className="grid gap-2 text-sm">
-            <p className="text-xs text-muted-foreground">
-              {t(
-                "Check what was understood, fill in what's missing (optional), then create the letter.",
-                "የተረዳውን ያረጋግጡ፣ የጎደለውን ይሙሉ (አማራጭ)፣ ከዚያ ደብዳቤውን ይፍጠሩ።",
-              )}
-            </p>
-            <div className="grid grid-cols-[1.25rem_9rem_1fr] items-center gap-2">
-              {recipient ? (
-                <CheckCircle2 className="size-4 text-success" />
-              ) : (
-                <CircleDashed className="size-4 text-muted-foreground" />
-              )}
-              <Label htmlFor="smart-recipient" className="font-normal text-muted-foreground">
-                {t("Recipient", "ተቀባይ")}
-              </Label>
-              <Input
-                id="smart-recipient"
-                list="smart-contacts"
-                className="h-8 font-ethiopic"
-                placeholder="[ተቀባይ]"
-                value={recipientEdit ? (recipientEdit.name ?? "") : (result.recipient?.name ?? "")}
-                onChange={(e) => editRecipient(e.target.value)}
-              />
-            </div>
-            {result.template.fields.map((f) => {
-              const v = values[f.key] ?? "";
-              return (
-                <div key={f.key} className="grid grid-cols-[1.25rem_9rem_1fr] items-center gap-2">
-                  {v ? (
-                    <CheckCircle2 className="size-4 text-success" />
-                  ) : (
-                    <CircleDashed className="size-4 text-muted-foreground" />
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start">
+            <div className="grid content-start gap-4">
+              <datalist id="smart-contacts">
+                {contactList
+                  .filter((c) => c.type === "recipient")
+                  .map((c) => (
+                    <option key={c.id} value={c.name} />
+                  ))}
+              </datalist>
+              <div className="grid gap-3 text-sm">
+                <p className="text-xs text-muted-foreground">
+                  {t(
+                    "Check what was understood, fill in what's missing (optional), then create the letter.",
+                    "የተረዳውን ያረጋግጡ፣ የጎደለውን ይሙሉ (አማራጭ)፣ ከዚያ ደብዳቤውን ይፍጠሩ።",
                   )}
-                  <Label htmlFor={`smart-${f.key}`} className="font-normal text-muted-foreground">
-                    {label(f)}
-                  </Label>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Input
-                      id={`smart-${f.key}`}
-                      type={
-                        f.type === "date"
-                          ? "date"
-                          : f.type === "number" || f.type === "money"
-                            ? "number"
-                            : "text"
-                      }
-                      step={f.type === "money" ? "0.01" : undefined}
-                      className="h-8 flex-1 font-ethiopic"
-                      placeholder={`[${f.label_am}]`}
-                      value={v}
-                      onChange={(e) => setEdits((x) => ({ ...x, [f.key]: e.target.value }))}
-                    />
-                    {f.type === "date" && v && (
-                      <span className="font-ethiopic text-xs text-muted-foreground">
-                        {isoToEthiopianString(v)}
-                      </span>
-                    )}
-                  </div>
+                </p>
+                <FieldRow
+                  id="smart-recipient"
+                  label={t("Recipient", "ተቀባይ")}
+                  filled={!!recipient?.name}
+                >
+                  <Input
+                    id="smart-recipient"
+                    list="smart-contacts"
+                    className="h-9 font-ethiopic"
+                    placeholder="[ተቀባይ]"
+                    value={
+                      recipientEdit ? (recipientEdit.name ?? "") : (result.recipient?.name ?? "")
+                    }
+                    onChange={(e) => editRecipient(e.target.value)}
+                  />
+                </FieldRow>
+                <FieldRow
+                  id="smart-recipient-title"
+                  label={t("Recipient title / branch", "የተቀባይ ማዕረግ / ቅርንጫፍ")}
+                  filled={!!(recipientEdit ?? result.recipient)?.title}
+                >
+                  <Input
+                    id="smart-recipient-title"
+                    className="h-9 font-ethiopic"
+                    placeholder={t("optional", "አማራጭ")}
+                    value={(recipientEdit ?? result.recipient)?.title ?? ""}
+                    onChange={(e) => editRecipientPart("title", e.target.value)}
+                  />
+                </FieldRow>
+                <FieldRow
+                  id="smart-recipient-city"
+                  label={t("City", "ከተማ")}
+                  filled={!!(recipientEdit ?? result.recipient)?.city}
+                >
+                  <Input
+                    id="smart-recipient-city"
+                    className="h-9 font-ethiopic"
+                    placeholder={t("optional", "አማራጭ")}
+                    value={(recipientEdit ?? result.recipient)?.city ?? ""}
+                    onChange={(e) => editRecipientPart("city", e.target.value)}
+                  />
+                </FieldRow>
+                {result.template.fields.map((f) => {
+                  const v = values[f.key] ?? "";
+                  return (
+                    <FieldRow key={f.key} id={`smart-${f.key}`} label={label(f)} filled={!!v}>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Input
+                          id={`smart-${f.key}`}
+                          type={
+                            f.type === "date"
+                              ? "date"
+                              : f.type === "number" || f.type === "money"
+                                ? "number"
+                                : "text"
+                          }
+                          step={f.type === "money" ? "0.01" : undefined}
+                          className="h-9 min-w-0 flex-1 font-ethiopic"
+                          placeholder={`[${f.label_am}]`}
+                          value={v}
+                          onChange={(e) => setEdits((x) => ({ ...x, [f.key]: e.target.value }))}
+                        />
+                        {f.type === "date" && v && (
+                          <span className="font-ethiopic text-xs text-muted-foreground">
+                            {isoToEthiopianString(v)}
+                          </span>
+                        )}
+                      </div>
+                    </FieldRow>
+                  );
+                })}
+              </div>
+
+              <details
+                className="group rounded-md border"
+                open={senderMissing.length > 0 || undefined}
+              >
+                <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-2 gap-y-1 p-3 text-sm">
+                  {senderMissing.length ? (
+                    <CircleDashed className="size-4 text-warning" />
+                  ) : (
+                    <CheckCircle2 className="size-4 text-success" />
+                  )}
+                  <span className="font-medium">{t("From", "ከ")}</span>
+                  <span className="min-w-0 flex-1 truncate font-ethiopic text-muted-foreground">
+                    {[sender.org_name_am, sender.signer_name].filter(Boolean).join(" · ") ||
+                      t("not set", "አልተሞላም")}
+                  </span>
+                  <span className="text-xs text-primary group-open:hidden">
+                    {t("Change", "ቀይር")}
+                  </span>
+                </summary>
+                <div className="border-t p-3">
+                  <SenderFields
+                    idPrefix="smart-sender"
+                    sender={sender}
+                    onChange={setSenderEdit}
+                    signatories={signatoryList}
+                    signatoryId={chosenSignatoryId}
+                    onSignatoryChange={setSignatoryId}
+                  />
                 </div>
-              );
-            })}
-          </div>
+              </details>
 
-          {useModel && model && model.unconverted.length > 0 && (
-            <div className="rounded-md border border-warning/50 p-3 text-sm">
-              <p className="font-medium">
-                {t("Found, but couldn't turn into a field:", "ተገኝቷል፣ ግን ወደ መስክ መቀየር አልተቻለም፡")}
-              </p>
-              <ul className="mt-1 list-disc pl-5 font-ethiopic text-muted-foreground">
-                {model.unconverted.map((u) => (
-                  <li key={u.field.key}>
-                    {label(u.field)}: “{u.raw}” — {t("set it in the editor", "በአርታዒው ያስገቡ")}
-                  </li>
-                ))}
-              </ul>
+              {useModel && model && model.unconverted.length > 0 && (
+                <div className="rounded-md border border-warning/50 p-3 text-sm">
+                  <p className="font-medium">
+                    {t("Found, but couldn't turn into a field:", "ተገኝቷል፣ ግን ወደ መስክ መቀየር አልተቻለም፡")}
+                  </p>
+                  <ul className="mt-1 list-disc pl-5 font-ethiopic text-muted-foreground">
+                    {model.unconverted.map((u) => (
+                      <li key={u.field.key}>
+                        {label(u.field)}: “{u.raw}” — {t("set it in the editor", "በአርታዒው ያስገቡ")}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {useModel && model && (
+                <details className="text-xs text-muted-foreground">
+                  <summary className="cursor-pointer">
+                    {t("What the model marked in your sentence", "ሞዴሉ በዓረፍተ ነገርዎ ውስጥ ምልክት ያደረገው")}
+                  </summary>
+                  <dl className="mt-2 grid grid-cols-[8rem_1fr] gap-1 font-ethiopic">
+                    {Object.entries(model.rawFacts).map(([k, v]) => (
+                      <div key={k} className="contents">
+                        <dt className="font-mono">{k}</dt>
+                        <dd>{v}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </details>
+              )}
+
+              <div className="flex flex-wrap items-center gap-3">
+                <Button onClick={create} disabled={busy}>
+                  {busy ? <Loader2 className="animate-spin" /> : <ArrowRight />}
+                  {t("Create letter", "ደብዳቤውን ፍጠር")}
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  {filledCount < result.template.fields.length
+                    ? t(
+                        `${filledCount} of ${result.template.fields.length} details filled. You can create it now; empty ones stay as [placeholders] to fill later in the editor.`,
+                        `ከ${result.template.fields.length} ዝርዝሮች ${filledCount}ቱ ተሞልተዋል። አሁን መፍጠር ይችላሉ፤ ባዶዎቹ እንደ [ቦታ ያዥ] ይቆያሉ፣ በኋላ በአርታዒው ይሞላሉ።`,
+                      )
+                    : t("All details filled.", "ሁሉም ዝርዝሮች ተሞልተዋል።")}
+                </p>
+              </div>
             </div>
-          )}
-
-          {useModel && model && (
-            <details className="text-xs text-muted-foreground">
-              <summary className="cursor-pointer">
-                {t("What the model marked in your sentence", "ሞዴሉ በዓረፍተ ነገርዎ ውስጥ ምልክት ያደረገው")}
-              </summary>
-              <dl className="mt-2 grid grid-cols-[8rem_1fr] gap-1 font-ethiopic">
-                {Object.entries(model.rawFacts).map(([k, v]) => (
-                  <div key={k} className="contents">
-                    <dt className="font-mono">{k}</dt>
-                    <dd>{v}</dd>
-                  </div>
-                ))}
-              </dl>
-            </details>
-          )}
-
-          <div className="rounded-md bg-muted/50 p-3 font-ethiopic text-sm leading-relaxed">
-            <p className="mb-1 font-semibold">ጉዳዩ፡ {result.template.subject_am}</p>
-            {recipient && (
-              <p className="mb-1 text-muted-foreground">
-                ለ፡ {[recipient.name, recipient.title].filter(Boolean).join(" — ")}
+            <div className="grid gap-2 lg:sticky lg:top-20">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                {t("Preview", "ቅድመ እይታ")}
               </p>
-            )}
-            {fillTemplate(result.template.body_am, result.template.fields, values)}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <Button onClick={create} disabled={busy}>
-              {busy ? <Loader2 className="animate-spin" /> : <ArrowRight />}
-              {t("Create letter", "ደብዳቤውን ፍጠር")}
-            </Button>
-            <p className="text-xs text-muted-foreground">
-              {filledCount < result.template.fields.length
-                ? t(
-                    `${filledCount} of ${result.template.fields.length} details filled. You can create it now; empty ones stay as [placeholders] to fill later in the editor.`,
-                    `ከ${result.template.fields.length} ዝርዝሮች ${filledCount}ቱ ተሞልተዋል። አሁን መፍጠር ይችላሉ፤ ባዶዎቹ እንደ [ቦታ ያዥ] ይቆያሉ፣ በኋላ በአርታዒው ይሞላሉ።`,
-                  )
-                : t("All details filled.", "ሁሉም ዝርዝሮች ተሞልተዋል።")}
-            </p>
+              <div className="overflow-hidden rounded-md border bg-muted/40 p-2 sm:p-3">
+                <ScaledSheet>
+                  <LetterSheet
+                    org={me.org}
+                    letter={{
+                      referenceNo: null,
+                      dateIso: todayAddisIso(),
+                      recipient: recipient ?? {},
+                      subject: result.template.subject_am,
+                      body: [fillTemplate(result.template.body_am, result.template.fields, values)],
+                      cc: [],
+                      signatory,
+                      sender,
+                    }}
+                  />
+                </ScaledSheet>
+              </div>
+            </div>
           </div>
         </section>
       )}
@@ -681,6 +777,33 @@ function SmartForm({ me }: { me: Me }) {
           "የጻፉት መረጃ ብቻ ጥቅም ላይ ይውላል፤ ምንም አይፈጠርም። አጻጻፉ ከጸደቁ አብነቶችዎ ይመጣል።",
         )}
       </p>
+    </div>
+  );
+}
+
+/** One "understood" field: status icon, label, input. Stacks on small screens. */
+function FieldRow({
+  id,
+  label,
+  filled,
+  children,
+}: {
+  id: string;
+  label: string;
+  filled: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div className="grid grid-cols-[1.25rem_minmax(0,1fr)] items-center gap-x-2 gap-y-1 sm:grid-cols-[1.25rem_10rem_minmax(0,1fr)]">
+      {filled ? (
+        <CheckCircle2 className="size-4 text-success" />
+      ) : (
+        <CircleDashed className="size-4 text-muted-foreground" />
+      )}
+      <Label htmlFor={id} className="font-normal text-muted-foreground">
+        {label}
+      </Label>
+      <div className="col-start-2 sm:col-start-3">{children}</div>
     </div>
   );
 }

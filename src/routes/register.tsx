@@ -175,14 +175,14 @@ function RegisterTable() {
             <option value="draft">{t("Draft", "ረቂቅ")}</option>
           </select>
         )}
-        <div className="flex items-center gap-1.5 text-sm">
+        <div className="grid w-full grid-cols-[auto_minmax(0,1fr)] items-center gap-1.5 text-sm sm:flex sm:w-auto">
           <Label htmlFor="from" className="text-muted-foreground">
             {t("From", "ከ")}
           </Label>
           <Input
             id="from"
             type="date"
-            className="w-40"
+            className="w-full min-w-0 sm:w-40"
             value={from}
             onChange={(e) => setFrom(e.target.value)}
           />
@@ -192,7 +192,7 @@ function RegisterTable() {
           <Input
             id="to"
             type="date"
-            className="w-40"
+            className="w-full min-w-0 sm:w-40"
             value={to}
             onChange={(e) => setTo(e.target.value)}
           />

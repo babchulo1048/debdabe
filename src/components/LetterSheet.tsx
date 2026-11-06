@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
 import type { Org, Signatory } from "@/lib/data";
 import { isoToEthiopianString } from "@/lib/ethiopianCalendar";
-import type { Recipient } from "@/lib/letters";
+import type { Recipient, Sender } from "@/lib/letters";
 import { useSignedUrl } from "@/lib/storage";
 
 export type LetterContent = {
@@ -13,14 +13,23 @@ export type LetterContent = {
   body: string[];
   cc: string[];
   signatory: Signatory | null;
+  /** Letterhead text and signer for this letter (editable per letter). */
+  sender: Sender;
 };
+
+/** Show the stored signature image only if the letter is still signed by that person. */
+export function signatureFor(letter: LetterContent): string | null {
+  const s = letter.signatory;
+  return s && s.name_am === letter.sender.signer_name ? s.signature_url : null;
+}
 
 /** The printed page: an official Amharic letter on the organisation's letterhead. */
 export function LetterSheet({ org, letter }: { org: Org; letter: LetterContent }) {
   const header = useSignedUrl("letterheads", org.letterhead_header_url);
   const footer = useSignedUrl("letterheads", org.letterhead_footer_url);
   const logo = useSignedUrl("letterheads", org.logo_url);
-  const signature = useSignedUrl("signatures", letter.signatory?.signature_url);
+  const signature = useSignedUrl("signatures", signatureFor(letter));
+  const snd = letter.sender;
   const r = letter.recipient;
 
   return (
@@ -32,15 +41,17 @@ export function LetterSheet({ org, letter }: { org: Org; letter: LetterContent }
           <div className="flex items-center gap-3">
             {logo && <img src={logo} alt="" className="h-14 w-14 object-contain" />}
             <div className="leading-snug">
-              <div className="text-[14pt] font-semibold">{org.name_am || "[የድርጅቱ ስም]"}</div>
-              <div className="font-sans text-[10pt] font-medium">{org.name_en}</div>
+              <div className="text-[14pt] font-semibold">{snd.org_name_am || "[የድርጅቱ ስም]"}</div>
+              {snd.org_name_en && (
+                <div className="font-sans text-[10pt] font-medium">{snd.org_name_en}</div>
+              )}
             </div>
           </div>
           <div className="text-right font-sans text-[8.5pt] leading-snug">
-            {org.address && <div>{org.address}</div>}
-            {org.phone && <div>{org.phone}</div>}
-            {org.email && <div>{org.email}</div>}
-            {org.tin && <div>TIN: {org.tin}</div>}
+            {snd.address && <div>{snd.address}</div>}
+            {snd.phone && <div>{snd.phone}</div>}
+            {snd.email && <div>{snd.email}</div>}
+            {snd.tin && <div>TIN: {snd.tin}</div>}
           </div>
         </div>
       )}
@@ -82,8 +93,8 @@ export function LetterSheet({ org, letter }: { org: Org; letter: LetterContent }
             <div className="h-16">
               {signature && <img src={signature} alt="" className="h-16 object-contain" />}
             </div>
-            <div className="font-semibold">{letter.signatory?.name_am ?? "[ፊርማ]"}</div>
-            <div className="text-[11pt]">{letter.signatory?.position_am ?? ""}</div>
+            <div className="font-semibold">{snd.signer_name || "[ፈራሚ]"}</div>
+            <div className="text-[11pt]">{snd.signer_position || "[የፈራሚው ኃላፊነት]"}</div>
           </div>
           <div
             aria-hidden

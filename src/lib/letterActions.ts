@@ -2,11 +2,24 @@ import { toast } from "sonner";
 
 import type { LetterContent } from "@/components/LetterSheet";
 import { supabase } from "@/integrations/supabase/client";
-import { asRecipient, asStrings, logEvent, type LetterRow, type Org, type Signatory } from "./data";
+import {
+  asRecipient,
+  asRecord,
+  asStrings,
+  logEvent,
+  type LetterRow,
+  type Org,
+  type Signatory,
+} from "./data";
 import { buildLetterDocx, downloadBlob } from "./docx";
-import { docxFileName } from "./letters";
+import { defaultSender, docxFileName, readSender } from "./letters";
 
-export function toContent(l: LetterRow, signatories: Signatory[] | undefined): LetterContent {
+export function toContent(
+  l: LetterRow,
+  signatories: Signatory[] | undefined,
+  org: Org,
+): LetterContent {
+  const signatory = signatories?.find((s) => s.id === l.signatory_id) ?? null;
   return {
     referenceNo: l.reference_no,
     dateIso: l.letter_date,
@@ -14,7 +27,8 @@ export function toContent(l: LetterRow, signatories: Signatory[] | undefined): L
     subject: l.subject,
     body: asStrings(l.body),
     cc: asStrings(l.cc),
-    signatory: signatories?.find((s) => s.id === l.signatory_id) ?? null,
+    signatory,
+    sender: readSender(asRecord(l.field_values), defaultSender(org, signatory)),
   };
 }
 

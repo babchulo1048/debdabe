@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useT } from "@/lib/i18n";
+import { USING_MOCK } from "@/integrations/supabase/client";
 import { resetMockDb } from "@/lib/mock/client";
 import { DEMO_EMAIL, DEMO_PASSWORD, signInDemo, useSession } from "@/lib/session";
 
@@ -155,19 +156,23 @@ function LoginPage() {
             </Button>
           </form>
 
-          <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground">
-            <span className="h-px flex-1 bg-border" />
-            {t("or", "ወይም")}
-            <span className="h-px flex-1 bg-border" />
-          </div>
-          <Button variant="outline" className="w-full" disabled={busy} onClick={demo}>
-            {t("Use demo account", "የሙከራ መለያ ተጠቀም")}
-          </Button>
+          {DEMO_PASSWORD && (
+            <>
+              <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground">
+                <span className="h-px flex-1 bg-border" />
+                {t("or", "ወይም")}
+                <span className="h-px flex-1 bg-border" />
+              </div>
+              <Button variant="outline" className="w-full" disabled={busy} onClick={demo}>
+                {t("Use demo account", "የሙከራ መለያ ተጠቀም")}
+              </Button>
 
-          <p className="mt-3 text-center text-xs text-muted-foreground">
-            {t("Demo login", "የሙከራ መግቢያ")}: <span className="font-mono">{DEMO_EMAIL}</span> /{" "}
-            <span className="font-mono">{DEMO_PASSWORD}</span>
-          </p>
+              <p className="mt-3 text-center text-xs text-muted-foreground">
+                {t("Demo login", "የሙከራ መግቢያ")}: <span className="font-mono">{DEMO_EMAIL}</span> /{" "}
+                <span className="font-mono">{DEMO_PASSWORD}</span>
+              </p>
+            </>
+          )}
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
             {mode === "login"
@@ -182,22 +187,24 @@ function LoginPage() {
             </button>
           </p>
 
-          <div className="mt-8 rounded-md border border-dashed p-3 text-center text-xs text-muted-foreground">
-            {t(
-              "Mock mode: all data lives in this browser only.",
-              "የሙከራ ሁኔታ፡ ሁሉም መረጃ በዚህ አሳሽ ውስጥ ብቻ ይቀመጣል።",
-            )}{" "}
-            <button
-              type="button"
-              className="font-medium text-primary underline-offset-4 hover:underline"
-              onClick={() => {
-                resetMockDb();
-                toast.success(t("Demo data reset", "የሙከራ መረጃው ታድሷል"));
-              }}
-            >
-              {t("Reset demo data", "የሙከራ መረጃውን አድስ")}
-            </button>
-          </div>
+          {USING_MOCK && (
+            <div className="mt-8 rounded-md border border-dashed p-3 text-center text-xs text-muted-foreground">
+              {t(
+                "Mock mode: all data lives in this browser only.",
+                "የሙከራ ሁኔታ፡ ሁሉም መረጃ በዚህ አሳሽ ውስጥ ብቻ ይቀመጣል።",
+              )}{" "}
+              <button
+                type="button"
+                className="font-medium text-primary underline-offset-4 hover:underline"
+                onClick={() => {
+                  resetMockDb();
+                  toast.success(t("Demo data reset", "የሙከራ መረጃው ታድሷል"));
+                }}
+              >
+                {t("Reset demo data", "የሙከራ መረጃውን አድስ")}
+              </button>
+            </div>
+          )}
         </div>
       </section>
     </div>

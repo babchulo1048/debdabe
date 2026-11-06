@@ -10,7 +10,7 @@ import {
 } from "docx";
 
 import { supabase } from "@/integrations/supabase/client";
-import type { LetterContent } from "@/components/LetterSheet";
+import { signatureFor, type LetterContent } from "@/components/LetterSheet";
 import type { Org } from "./data";
 import { isoToEthiopianString } from "./ethiopianCalendar";
 
@@ -57,7 +57,7 @@ export async function buildLetterDocx(org: Org, l: LetterContent): Promise<Blob>
   const [header, footer, signature] = await Promise.all([
     loadImage("letterheads", org.letterhead_header_url),
     loadImage("letterheads", org.letterhead_footer_url),
-    loadImage("signatures", l.signatory?.signature_url ?? null),
+    loadImage("signatures", signatureFor(l)),
   ]);
 
   const children: Paragraph[] = [];
@@ -66,14 +66,27 @@ export async function buildLetterDocx(org: Org, l: LetterContent): Promise<Blob>
     children.push(imageParagraph(header, 600, 140));
   } else {
     children.push(
-      new Paragraph({ children: [run(org.name_am, { bold: true, size: 28, color: "23305A" })] }),
+      new Paragraph({
+        children: [run(l.sender.org_name_am, { bold: true, size: 28, color: "23305A" })],
+      }),
       new Paragraph({
         border: { bottom: { style: "single", size: 12, color: "23305A", space: 4 } },
         children: [
-          run([org.name_en, org.address, org.phone, org.email].filter(Boolean).join(" · "), {
-            size: 18,
-            color: "23305A",
-          }),
+          run(
+            [
+              l.sender.org_name_en,
+              l.sender.address,
+              l.sender.phone,
+              l.sender.email,
+              l.sender.tin && `TIN: ${l.sender.tin}`,
+            ]
+              .filter(Boolean)
+              .join(" · "),
+            {
+              size: 18,
+              color: "23305A",
+            },
+          ),
         ],
       }),
     );
@@ -131,12 +144,12 @@ export async function buildLetterDocx(org: Org, l: LetterContent): Promise<Blob>
       indent: { left: 4400 },
       keepNext: true,
       tabStops: [{ type: TabStopType.LEFT, position: 4400 }],
-      children: [run(l.signatory?.name_am ?? "", { bold: true })],
+      children: [run(l.sender.signer_name, { bold: true })],
     }),
     new Paragraph({
       indent: { left: 4400 },
       keepNext: true,
-      children: [run(l.signatory?.position_am ?? "")],
+      children: [run(l.sender.signer_position)],
     }),
   );
 

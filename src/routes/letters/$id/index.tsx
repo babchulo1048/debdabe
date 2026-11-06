@@ -52,7 +52,7 @@ function Detail({ me, letter }: { me: Me; letter: LetterRow }) {
   const signatories = useSignatories();
   const events = useLetterEvents(letter.id);
   const fileUrl = useSignedUrl("incoming-letters", letter.file_url);
-  const content = toContent(letter, signatories.data);
+  const content = toContent(letter, signatories.data, me.org);
   const incoming = letter.direction === "incoming";
 
   async function onDuplicate() {

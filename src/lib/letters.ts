@@ -101,3 +101,75 @@ export function slugify(s: string): string {
 export function docxFileName(ref: string | null | undefined, subject: string): string {
   return `${ref ? ref.replaceAll("/", "-") : "draft"}_${slugify(subject)}.docx`;
 }
+
+// ---- Sender (letterhead + signer), kept per letter -------------------------
+
+/** Who the letter is from. Prefilled from Settings, editable per letter. */
+export type Sender = {
+  org_name_am: string;
+  org_name_en: string;
+  tin: string;
+  address: string;
+  phone: string;
+  email: string;
+  signer_name: string;
+  signer_position: string;
+};
+export type SenderKey = keyof Sender;
+
+export const SENDER_FIELDS: { key: SenderKey; label_am: string; label_en: string }[] = [
+  { key: "org_name_am", label_am: "የድርጅቱ ስም", label_en: "Company name (Amharic)" },
+  { key: "org_name_en", label_am: "የድርጅቱ ስም (እንግሊዝኛ)", label_en: "Company name (English)" },
+  { key: "tin", label_am: "የግብር ከፋይ መለያ ቁጥር", label_en: "TIN" },
+  { key: "address", label_am: "አድራሻ", label_en: "Address" },
+  { key: "phone", label_am: "ስልክ", label_en: "Phone" },
+  { key: "email", label_am: "ኢሜይል", label_en: "Email" },
+  { key: "signer_name", label_am: "ፈራሚ", label_en: "Signed by" },
+  { key: "signer_position", label_am: "የፈራሚው ኃላፊነት", label_en: "Signer's position" },
+];
+
+const SENDER_PREFIX = "_sender_";
+
+type OrgLike = {
+  name_am?: string | null;
+  name_en?: string | null;
+  tin?: string | null;
+  address?: string | null;
+  phone?: string | null;
+  email?: string | null;
+};
+type SignerLike = { name_am?: string | null; position_am?: string | null } | null | undefined;
+
+/** The sender as set up in Settings. */
+export function defaultSender(org: OrgLike, signer: SignerLike): Sender {
+  return {
+    org_name_am: org.name_am ?? "",
+    org_name_en: org.name_en ?? "",
+    tin: org.tin ?? "",
+    address: org.address ?? "",
+    phone: org.phone ?? "",
+    email: org.email ?? "",
+    signer_name: signer?.name_am ?? "",
+    signer_position: signer?.position_am ?? "",
+  };
+}
+
+/** The letter's own sender values win; older letters without them use Settings. */
+export function readSender(values: Record<string, string>, fallback: Sender): Sender {
+  const out = { ...fallback };
+  for (const f of SENDER_FIELDS) {
+    const k = SENDER_PREFIX + f.key;
+    if (k in values) out[f.key] = values[k] ?? "";
+  }
+  return out;
+}
+
+/** Store the sender inside the letter's field values. */
+export function writeSender(
+  values: Record<string, string>,
+  sender: Sender,
+): Record<string, string> {
+  const out = { ...values };
+  for (const f of SENDER_FIELDS) out[SENDER_PREFIX + f.key] = sender[f.key].trim();
+  return out;
+}

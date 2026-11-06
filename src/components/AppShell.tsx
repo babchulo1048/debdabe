@@ -7,12 +7,14 @@ import {
   FileText,
   LayoutDashboard,
   LogOut,
+  Menu,
   Settings,
 } from "lucide-react";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { AmharicKeyboardToggle } from "@/components/AmharicKeyboard";
 import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { isAdmin, useMe, type Me } from "@/lib/data";
@@ -37,6 +39,7 @@ export function AppShell({ children }: { children: (me: Me) => ReactNode }) {
   const me = useMe();
   const qc = useQueryClient();
   const { lang, setLang, t } = useT();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     if (session === null) navigate({ to: "/login" });
@@ -67,68 +70,112 @@ export function AppShell({ children }: { children: (me: Me) => ReactNode }) {
   const data = me.data;
   const items = NAV.filter((n) => !n.admin || isAdmin(data.role));
 
+  async function signOut() {
+    setMenuOpen(false);
+    await supabase.auth.signOut();
+    qc.clear();
+  }
+
+  const langSwitch = (
+    <div className="flex rounded-md border p-0.5 text-xs" role="group" aria-label="Language">
+      {(["en", "am"] as const).map((l) => (
+        <button
+          key={l}
+          type="button"
+          onClick={() => setLang(l)}
+          aria-pressed={lang === l}
+          className={`rounded px-2 py-1 ${lang === l ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+        >
+          {l === "en" ? "EN" : "አማ"}
+        </button>
+      ))}
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-20 border-b bg-card/95 backdrop-blur print:hidden">
-        <div className="mx-auto flex max-w-[1200px] flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
-          <Link to="/" className="flex items-center gap-2">
+        <div className="mx-auto flex h-14 max-w-[1200px] items-center gap-3 px-4 lg:gap-6">
+          <Link to="/" className="flex shrink-0 items-center gap-2">
             <span className="grid h-8 w-8 place-items-center rounded-full border-2 border-primary font-ethiopic text-sm font-semibold text-primary">
               ደ
             </span>
             <span className="font-serif text-lg font-semibold">Debdabe</span>
           </Link>
-          <nav className="flex flex-1 flex-wrap gap-1" aria-label="Main">
+          <nav className="hidden flex-1 items-center gap-1 lg:flex" aria-label="Main">
             {items.map((n) => (
-              <Link
-                key={n.to}
-                to={n.to}
-                activeOptions={{ exact: n.to === "/" }}
-                className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
-                activeProps={{ className: "bg-primary-soft text-foreground font-medium" }}
-              >
-                <n.icon className="size-4" />
-                {t(n.en, n.am)}
-              </Link>
+              <NavLink key={n.to} item={n} label={t(n.en, n.am)} />
             ))}
           </nav>
-          <div className="flex items-center gap-2">
-            <AmharicKeyboardToggle />
-            <div
-              className="flex rounded-md border p-0.5 text-xs"
-              role="group"
-              aria-label="Language"
-            >
-              {(["en", "am"] as const).map((l) => (
-                <button
-                  key={l}
-                  type="button"
-                  onClick={() => setLang(l)}
-                  aria-pressed={lang === l}
-                  className={`rounded px-2 py-1 ${lang === l ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
-                >
-                  {l === "en" ? "EN" : "አማ"}
-                </button>
-              ))}
+          <div className="ml-auto flex items-center gap-2 lg:ml-0">
+            <div className="hidden sm:block">
+              <AmharicKeyboardToggle />
             </div>
-            <span className="hidden text-sm text-muted-foreground md:inline">
-              {data.org.name_en || data.org.name_am}
-            </span>
+            {langSwitch}
             <Button
               variant="ghost"
               size="icon"
+              className="hidden lg:inline-flex"
               aria-label={t("Sign out", "ውጣ")}
-              onClick={async () => {
-                await supabase.auth.signOut();
-                qc.clear();
-              }}
+              title={t("Sign out", "ውጣ")}
+              onClick={signOut}
             >
               <LogOut />
             </Button>
+            <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+              <SheetTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="lg:hidden"
+                  aria-label={t("Menu", "ማውጫ")}
+                >
+                  <Menu />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="flex w-72 flex-col gap-4 p-5">
+                <SheetTitle className="font-serif">Debdabe</SheetTitle>
+                <p className="-mt-3 truncate text-sm text-muted-foreground">
+                  {data.org.name_en || data.org.name_am}
+                </p>
+                <nav className="grid gap-1" aria-label="Main">
+                  {items.map((n) => (
+                    <NavLink
+                      key={n.to}
+                      item={n}
+                      label={t(n.en, n.am)}
+                      onClick={() => setMenuOpen(false)}
+                    />
+                  ))}
+                </nav>
+                <div className="sm:hidden">
+                  <AmharicKeyboardToggle />
+                </div>
+                <Button variant="outline" className="mt-auto" onClick={signOut}>
+                  <LogOut /> {t("Sign out", "ውጣ")}
+                </Button>
+              </SheetContent>
+            </Sheet>
           </div>
         </div>
       </header>
       <main className="mx-auto max-w-[1200px] px-4 py-6">{children(data)}</main>
     </div>
+  );
+}
+
+function NavLink({ item, label, onClick }: { item: NavItem; label: string; onClick?: () => void }) {
+  return (
+    <Link
+      to={item.to}
+      onClick={onClick}
+      activeOptions={{ exact: item.to === "/" }}
+      className="flex items-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
+      activeProps={{ className: "bg-primary-soft text-foreground font-medium" }}
+    >
+      <item.icon className="size-4" />
+      {label}
+    </Link>
   );
 }
 

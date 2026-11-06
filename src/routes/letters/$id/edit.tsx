@@ -28,7 +28,17 @@ import {
 import { isoToEthiopianString, isoToEthYear } from "@/lib/ethiopianCalendar";
 import { useT } from "@/lib/i18n";
 import { duplicateLetter, exportDocx, printLetter } from "@/lib/letterActions";
-import { editRatio, fillTemplate, type Recipient, type TemplateField } from "@/lib/letters";
+import {
+  defaultSender,
+  editRatio,
+  fillTemplate,
+  readSender,
+  writeSender,
+  type Recipient,
+  type Sender,
+  type TemplateField,
+} from "@/lib/letters";
+import { SenderFields } from "@/components/SenderFields";
 
 export const Route = createFileRoute("/letters/$id/edit")({
   ssr: false,
@@ -83,6 +93,10 @@ function Editor({ me, letter }: { me: Me; letter: LetterRow }) {
   const [ccInput, setCcInput] = useState("");
   const [signatoryId, setSignatoryId] = useState<string | null>(letter.signatory_id);
   const [dateIso, setDateIso] = useState(letter.letter_date);
+  // Letterhead + signer for this letter: stored values, else Settings (until the user edits).
+  const [senderEdit, setSenderEdit] = useState<Sender | null>(null);
+  const signatory = signatories.data?.find((s) => s.id === signatoryId) ?? null;
+  const sender = senderEdit ?? readSender(values, defaultSender(me.org, signatory));
   const [busy, setBusy] = useState<null | "save" | "final">(null);
 
   // While the user hasn't edited the body by hand, it follows the template fields.
@@ -97,7 +111,8 @@ function Editor({ me, letter }: { me: Me; letter: LetterRow }) {
     subject,
     body: splitParas(bodyText),
     cc,
-    signatory: signatories.data?.find((s) => s.id === signatoryId) ?? null,
+    signatory,
+    sender,
   };
 
   const recipients = (contacts.data ?? []).filter((c) => c.type === "recipient");
@@ -111,7 +126,7 @@ function Editor({ me, letter }: { me: Me; letter: LetterRow }) {
         body: content.body,
         recipient,
         cc,
-        field_values: values,
+        field_values: writeSender(values, sender),
         signatory_id: signatoryId,
         letter_date: dateIso,
         updated_at: new Date().toISOString(),
@@ -350,24 +365,19 @@ function Editor({ me, letter }: { me: Me; letter: LetterRow }) {
           </div>
         </Section>
 
-        <Section title={t("Signature, date and copies", "ፊርማ፣ ቀን እና ግልባጭ")}>
+        <Section title={t("From (letterhead and signature)", "ከ (ራስጌ እና ፊርማ)")}>
+          <SenderFields
+            idPrefix="s"
+            sender={sender}
+            onChange={setSenderEdit}
+            signatories={signatories.data ?? []}
+            signatoryId={signatoryId}
+            onSignatoryChange={setSignatoryId}
+          />
+        </Section>
+
+        <Section title={t("Date and copies", "ቀን እና ግልባጭ")}>
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="grid gap-1.5">
-              <Label htmlFor="signatory">{t("Signatory", "ፈራሚ")}</Label>
-              <select
-                id="signatory"
-                className="h-9 rounded-md border bg-background px-2 font-ethiopic text-sm"
-                value={signatoryId ?? ""}
-                onChange={(e) => setSignatoryId(e.target.value || null)}
-              >
-                <option value="">—</option>
-                {signatories.data?.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name_am} · {s.position_am}
-                  </option>
-                ))}
-              </select>
-            </div>
             <div className="grid gap-1.5">
               <Label htmlFor="date">{t("Letter date", "የደብዳቤው ቀን")}</Label>
               <Input
