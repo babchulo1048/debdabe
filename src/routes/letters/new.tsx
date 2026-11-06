@@ -668,36 +668,24 @@ function SmartForm({ me }: { me: Me }) {
                 })}
               </div>
 
-              <details
-                className="group rounded-md border"
-                open={senderMissing.length > 0 || undefined}
-              >
-                <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-2 gap-y-1 p-3 text-sm">
+              <div className="grid gap-3 rounded-md border p-3">
+                <p className="flex items-center gap-2 text-sm font-medium">
                   {senderMissing.length ? (
                     <CircleDashed className="size-4 text-warning" />
                   ) : (
                     <CheckCircle2 className="size-4 text-success" />
                   )}
-                  <span className="font-medium">{t("From", "ከ")}</span>
-                  <span className="min-w-0 flex-1 truncate font-ethiopic text-muted-foreground">
-                    {[sender.org_name_am, sender.signer_name].filter(Boolean).join(" · ") ||
-                      t("not set", "አልተሞላም")}
-                  </span>
-                  <span className="text-xs text-primary group-open:hidden">
-                    {t("Change", "ቀይር")}
-                  </span>
-                </summary>
-                <div className="border-t p-3">
-                  <SenderFields
-                    idPrefix="smart-sender"
-                    sender={sender}
-                    onChange={setSenderEdit}
-                    signatories={signatoryList}
-                    signatoryId={chosenSignatoryId}
-                    onSignatoryChange={setSignatoryId}
-                  />
-                </div>
-              </details>
+                  {t("From (letterhead and signature)", "ከ (ራስጌ እና ፊርማ)")}
+                </p>
+                <SenderFields
+                  idPrefix="smart-sender"
+                  sender={sender}
+                  onChange={setSenderEdit}
+                  signatories={signatoryList}
+                  signatoryId={chosenSignatoryId}
+                  onSignatoryChange={setSignatoryId}
+                />
+              </div>
 
               {useModel && model && model.unconverted.length > 0 && (
                 <div className="rounded-md border border-warning/50 p-3 text-sm">
