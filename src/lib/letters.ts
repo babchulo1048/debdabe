@@ -57,7 +57,10 @@ export function formatReference(
     .replaceAll("{DEPT}", o.dept ?? "");
 }
 
-export function usageLevel(used: number, limit: number | null): "ok" | "near" | "over" | "unlimited" {
+export function usageLevel(
+  used: number,
+  limit: number | null,
+): "ok" | "near" | "over" | "unlimited" {
   if (limit == null) return "unlimited";
   const p = used / limit;
   if (p >= 1) return used > limit ? "over" : "near";
@@ -73,21 +76,26 @@ export function invoiceTotals(amount: number) {
 /** Levenshtein-based edit ratio (0 = unchanged, 1 = fully rewritten). */
 export function editRatio(a: string, b: string): number {
   if (a === b) return 0;
-  const m = a.length, n = b.length;
+  const m = a.length,
+    n = b.length;
   if (!m || !n) return 1;
-  let prev = Array.from({ length: n + 1 }, (_, i) => i);
+  let prev: number[] = Array.from({ length: n + 1 }, (_, i) => i);
   for (let i = 1; i <= m; i++) {
-    const cur = [i];
+    const cur: number[] = [i];
     for (let j = 1; j <= n; j++) {
-      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      const sub = (prev[j - 1] ?? 0) + (a[i - 1] === b[j - 1] ? 0 : 1);
+      cur[j] = Math.min((prev[j] ?? 0) + 1, (cur[j - 1] ?? 0) + 1, sub);
     }
     prev = cur;
   }
-  return Math.round((prev[n] / Math.max(m, n)) * 1000) / 1000;
+  return Math.round(((prev[n] ?? 0) / Math.max(m, n)) * 1000) / 1000;
 }
 
 export function slugify(s: string): string {
-  return (s || "letter").trim().replace(/[\s/\\:*?"<>|]+/g, "-").slice(0, 50);
+  return (s || "letter")
+    .trim()
+    .replace(/[\s/\\:*?"<>|]+/g, "-")
+    .slice(0, 50);
 }
 
 export function docxFileName(ref: string | null | undefined, subject: string): string {

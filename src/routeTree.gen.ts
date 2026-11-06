@@ -10,33 +10,141 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as BillingRouteImport } from './routes/billing'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as RegisterRouteImport } from './routes/register'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as TemplatesRouteImport } from './routes/templates'
+import { Route as LettersNewRouteImport } from './routes/letters/new'
+import { Route as LettersIdIndexRouteImport } from './routes/letters/$id/index'
+import { Route as LettersIdEditRouteImport } from './routes/letters/$id/edit'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BillingRoute = BillingRouteImport.update({
+  id: '/billing',
+  path: '/billing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TemplatesRoute = TemplatesRouteImport.update({
+  id: '/templates',
+  path: '/templates',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LettersNewRoute = LettersNewRouteImport.update({
+  id: '/letters/new',
+  path: '/letters/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LettersIdIndexRoute = LettersIdIndexRouteImport.update({
+  id: '/letters/$id/',
+  path: '/letters/$id/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LettersIdEditRoute = LettersIdEditRouteImport.update({
+  id: '/letters/$id/edit',
+  path: '/letters/$id/edit',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/billing': typeof BillingRoute
+  '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
+  '/settings': typeof SettingsRoute
+  '/templates': typeof TemplatesRoute
+  '/letters/new': typeof LettersNewRoute
+  '/letters/$id/edit': typeof LettersIdEditRoute
+  '/letters/$id/': typeof LettersIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/billing': typeof BillingRoute
+  '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
+  '/settings': typeof SettingsRoute
+  '/templates': typeof TemplatesRoute
+  '/letters/new': typeof LettersNewRoute
+  '/letters/$id/edit': typeof LettersIdEditRoute
+  '/letters/$id': typeof LettersIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/billing': typeof BillingRoute
+  '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
+  '/settings': typeof SettingsRoute
+  '/templates': typeof TemplatesRoute
+  '/letters/new': typeof LettersNewRoute
+  '/letters/$id/edit': typeof LettersIdEditRoute
+  '/letters/$id/': typeof LettersIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/billing'
+    | '/login'
+    | '/register'
+    | '/settings'
+    | '/templates'
+    | '/letters/new'
+    | '/letters/$id/edit'
+    | '/letters/$id/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/billing'
+    | '/login'
+    | '/register'
+    | '/settings'
+    | '/templates'
+    | '/letters/new'
+    | '/letters/$id/edit'
+    | '/letters/$id'
+  id:
+    | '__root__'
+    | '/'
+    | '/billing'
+    | '/login'
+    | '/register'
+    | '/settings'
+    | '/templates'
+    | '/letters/new'
+    | '/letters/$id/edit'
+    | '/letters/$id/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BillingRoute: typeof BillingRoute
+  LoginRoute: typeof LoginRoute
+  RegisterRoute: typeof RegisterRoute
+  SettingsRoute: typeof SettingsRoute
+  TemplatesRoute: typeof TemplatesRoute
+  LettersNewRoute: typeof LettersNewRoute
+  LettersIdEditRoute: typeof LettersIdEditRoute
+  LettersIdIndexRoute: typeof LettersIdIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +156,75 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/billing': {
+      id: '/billing'
+      path: '/billing'
+      fullPath: '/billing'
+      preLoaderRoute: typeof BillingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/templates': {
+      id: '/templates'
+      path: '/templates'
+      fullPath: '/templates'
+      preLoaderRoute: typeof TemplatesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/letters/new': {
+      id: '/letters/new'
+      path: '/letters/new'
+      fullPath: '/letters/new'
+      preLoaderRoute: typeof LettersNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/letters/$id/': {
+      id: '/letters/$id/'
+      path: '/letters/$id'
+      fullPath: '/letters/$id/'
+      preLoaderRoute: typeof LettersIdIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/letters/$id/edit': {
+      id: '/letters/$id/edit'
+      path: '/letters/$id/edit'
+      fullPath: '/letters/$id/edit'
+      preLoaderRoute: typeof LettersIdEditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BillingRoute: BillingRoute,
+  LoginRoute: LoginRoute,
+  RegisterRoute: RegisterRoute,
+  SettingsRoute: SettingsRoute,
+  TemplatesRoute: TemplatesRoute,
+  LettersNewRoute: LettersNewRoute,
+  LettersIdEditRoute: LettersIdEditRoute,
+  LettersIdIndexRoute: LettersIdIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

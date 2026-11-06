@@ -30,3 +30,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Vercel build output / local env (the app is fully mock, no keys needed)
+.vercel
+.env

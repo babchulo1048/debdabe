@@ -13,7 +13,7 @@ const cases: [string, [number, number, number], string?][] = [
 describe("Ethiopian calendar", () => {
   for (const [iso, [ey, em, ed], fmt] of cases) {
     it(`${iso} -> ${ey}-${em}-${ed}`, () => {
-      const [y, m, d] = iso.split("-").map(Number);
+      const [y = 0, m = 0, d = 0] = iso.split("-").map(Number);
       const e = toEthiopian(y, m, d);
       expect(e).toEqual({ year: ey, month: em, day: ed });
       expect(toGregorian(ey, em, ed)).toEqual({ year: y, month: m, day: d });

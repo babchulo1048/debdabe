@@ -43,9 +43,7 @@ export function toEthiopian(y: number, m: number, d: number): EthDate {
 }
 
 export function ethiopianToJdn(year: number, month: number, day: number): number {
-  return (
-    ETHIOPIAN_EPOCH + 365 * year + Math.floor(year / 4) + 30 * (month - 1) + day - 1
-  );
+  return ETHIOPIAN_EPOCH + 365 * year + Math.floor(year / 4) + 30 * (month - 1) + day - 1;
 }
 
 export function toGregorian(year: number, month: number, day: number) {
@@ -53,8 +51,19 @@ export function toGregorian(year: number, month: number, day: number) {
 }
 
 export const ETH_MONTHS = [
-  "መስከረም", "ጥቅምት", "ኅዳር", "ታኅሣሥ", "ጥር", "የካቲት", "መጋቢት",
-  "ሚያዝያ", "ግንቦት", "ሰኔ", "ሐምሌ", "ነሐሴ", "ጳጉሜን",
+  "መስከረም",
+  "ጥቅምት",
+  "ኅዳር",
+  "ታኅሣሥ",
+  "ጥር",
+  "የካቲት",
+  "መጋቢት",
+  "ሚያዝያ",
+  "ግንቦት",
+  "ሰኔ",
+  "ሐምሌ",
+  "ነሐሴ",
+  "ጳጉሜን",
 ];
 
 export function formatEthiopian(e: EthDate): string {
@@ -63,7 +72,7 @@ export function formatEthiopian(e: EthDate): string {
 
 /** Parse "YYYY-MM-DD" into parts. */
 export function parseIso(iso: string) {
-  const [y, m, d] = iso.slice(0, 10).split("-").map(Number);
+  const [y = 0, m = 0, d = 0] = iso.slice(0, 10).split("-").map(Number);
   return { y, m, d };
 }
 
@@ -91,6 +100,19 @@ export function todayAddisIso(now: Date = new Date()): string {
 
 export function formatGregorian(iso: string): string {
   const { y, m, d } = parseIso(iso);
-  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
   return `${d} ${months[m - 1]} ${y}`;
 }
