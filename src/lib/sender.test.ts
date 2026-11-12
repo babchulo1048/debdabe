@@ -2,7 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import { defaultSender, readSender, writeSender } from "./letters";
 
-const org = { name_am: "ናሙና", name_en: "Namuna", tin: "123", address: "Bole", phone: "", email: "" };
+const org = {
+  name_am: "ናሙና",
+  name_en: "Namuna",
+  tin: "123",
+  address: "Bole",
+  phone: "",
+  email: "",
+};
 const signer = { name_am: "አቶ ሰለሞን", position_am: "ዋና ሥራ አስኪያጅ" };
 
 describe("sender per letter", () => {

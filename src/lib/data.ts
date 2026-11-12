@@ -221,6 +221,46 @@ export function useMonthlyUsage() {
   });
 }
 
+/**
+ * The company's translation memory (normalized Amharic → English).
+ * Empty if the table isn't set up yet, so letters still open.
+ */
+export function useTranslations() {
+  return useQuery({
+    queryKey: ["translations"],
+    queryFn: async (): Promise<Map<string, string>> => {
+      const { data, error } = await supabase
+        .from("translations")
+        .select("source, target, updated_at")
+        .order("updated_at");
+      if (error) return new Map();
+      return new Map(data.map((r) => [r.source, r.target]));
+    },
+  });
+}
+
+/** Remember English forms for next time. `source` must already be normalized. */
+export async function saveTranslations(orgId: string, pairs: { source: string; target: string }[]) {
+  for (const p of pairs) {
+    const now = new Date().toISOString();
+    const { data: found, error } = await supabase
+      .from("translations")
+      .select("id")
+      .eq("source", p.source)
+      .maybeSingle();
+    if (error) throw error;
+    const res = found
+      ? await supabase
+          .from("translations")
+          .update({ target: p.target, updated_at: now })
+          .eq("id", found.id)
+      : await supabase
+          .from("translations")
+          .insert({ organization_id: orgId, source: p.source, target: p.target, updated_at: now });
+    if (res.error) throw res.error;
+  }
+}
+
 export async function logEvent(letterId: string, orgId: string, type: string) {
   const { data } = await supabase.auth.getUser();
   if (!data.user) return;

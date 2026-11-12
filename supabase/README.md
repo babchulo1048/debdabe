@@ -14,10 +14,14 @@ supabase.com → **New project**, in your **personal** organization.
 | File | What it does | Run |
 |---|---|---|
 | `migrations/20261106120000_init.sql` | Tables, security rules (RLS), letter numbering, signup, file buckets | once |
+| `migrations/20261112120000_english_letters.sql` | English wording on templates, plus each company's translation memory | safe to re-run |
 | `seed/00_templates.sql` | The 6 built-in letter templates (fixed ids the model uses) | safe to re-run |
 | `seed/01_demo.sql` | Demo company "Namuna Trading" with sample letters | once, optional |
 
 Check: `select count(*) from public.templates;` → **6**
+
+**Adding the English version to an existing project:** run `migrations/20261112120000_english_letters.sql`,
+then run `seed/00_templates.sql` again. Check: `select count(*) from public.templates where body_en <> '';` → **6**
 
 ## 3. Auth settings
 Authentication → Sign In / Providers → Email:

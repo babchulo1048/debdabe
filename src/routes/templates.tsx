@@ -35,6 +35,8 @@ type Draft = {
   category: string;
   subject_am: string;
   body_am: string;
+  subject_en: string;
+  body_en: string;
   fields: TemplateField[];
   is_active: boolean;
 };
@@ -46,6 +48,8 @@ const EMPTY: Draft = {
   category: "General",
   subject_am: "",
   body_am: "",
+  subject_en: "",
+  body_en: "",
   fields: [],
   is_active: true,
 };
@@ -58,6 +62,8 @@ function toDraft(tpl: TemplateRow, copy: boolean): Draft {
     category: tpl.category,
     subject_am: tpl.subject_am,
     body_am: tpl.body_am,
+    subject_en: tpl.subject_en ?? "",
+    body_en: tpl.body_en ?? "",
     fields: asFields(tpl.fields),
     is_active: tpl.is_active,
   };
@@ -168,6 +174,8 @@ function TemplateDialog({ me, draft, onClose }: { me: Me; draft: Draft; onClose:
       category: d.category,
       subject_am: d.subject_am,
       body_am: d.body_am,
+      subject_en: d.subject_en,
+      body_en: d.body_en,
       fields: d.fields,
       is_active: d.is_active,
     };
@@ -190,6 +198,14 @@ function TemplateDialog({ me, draft, onClose }: { me: Me; draft: Draft; onClose:
   const unknown = Array.from(
     new Set(placeholders.filter((p) => p && !d.fields.some((f) => f.key === p))),
   );
+  // The English wording must use the same blanks as the Amharic.
+  const enPlaceholders = new Set(
+    Array.from(d.body_en.matchAll(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g), (m) => m[1] ?? ""),
+  );
+  const enUnknown = [...enPlaceholders].filter((p) => p && !d.fields.some((f) => f.key === p));
+  const enMissing = d.body_en.trim()
+    ? d.fields.filter((f) => placeholders.includes(f.key) && !enPlaceholders.has(f.key))
+    : [];
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
@@ -269,6 +285,51 @@ function TemplateDialog({ me, draft, onClose }: { me: Me; draft: Draft; onClose:
               </div>
             )}
           </div>
+
+          <fieldset className="grid gap-3 rounded-md border p-3">
+            <legend className="px-1 text-sm font-medium">
+              {t("English version (optional)", "የእንግሊዝኛ ቅጂ (አማራጭ)")}
+            </legend>
+            <p className="text-xs text-muted-foreground">
+              {t(
+                "With English wording, letters from this template get an English button. Use the same {{field_key}} blanks.",
+                "የእንግሊዝኛ አገላለጽ ካለው፣ ከዚህ አብነት የሚዘጋጁ ደብዳቤዎች የእንግሊዝኛ ቁልፍ ያገኛሉ። ተመሳሳይ {{field_key}} ባዶ ቦታዎችን ይጠቀሙ።",
+              )}
+            </p>
+            <div className="grid gap-1.5">
+              <Label htmlFor="t-subj-en">{t("Subject (English)", "ጉዳዩ (እንግሊዝኛ)")}</Label>
+              <Input
+                id="t-subj-en"
+                lang="en"
+                value={d.subject_en}
+                onChange={(e) => set("subject_en", e.target.value)}
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="t-body-en">{t("Body (English)", "ዋና ጽሑፍ (እንግሊዝኛ)")}</Label>
+              <Textarea
+                id="t-body-en"
+                lang="en"
+                rows={4}
+                value={d.body_en}
+                onChange={(e) => set("body_en", e.target.value)}
+              />
+              {(enUnknown.length > 0 || enMissing.length > 0) && (
+                <p className="text-xs text-warning">
+                  {enUnknown.length > 0 &&
+                    t(
+                      `Not a field: ${enUnknown.join(", ")}. `,
+                      `መስክ ያልሆኑ፡ ${enUnknown.join(", ")}። `,
+                    )}
+                  {enMissing.length > 0 &&
+                    t(
+                      `Missing from the English: ${enMissing.map((f) => f.key).join(", ")}.`,
+                      `በእንግሊዝኛው የሌሉ፡ ${enMissing.map((f) => f.key).join(", ")}።`,
+                    )}
+                </p>
+              )}
+            </div>
+          </fieldset>
 
           <div className="grid gap-2">
             <div className="flex items-center justify-between">

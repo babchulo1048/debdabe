@@ -1,5 +1,5 @@
 /**
- * Demo data for the mock backend. Mirrors the seed in drizzle/migrations/0000.
+ * Demo data for the mock backend. Mirrors supabase/seed/00_templates.sql and 01_demo.sql.
  * Dates are relative to "now" so the dashboard always looks current.
  */
 
@@ -43,6 +43,9 @@ export function buildSeed(): MockDb {
       title_en: "Work experience confirmation",
       category: "HR",
       subject_am: "የሥራ ልምድ ማረጋገጫ ስለመስጠት",
+      subject_en: "Confirmation of Work Experience",
+      body_en:
+        "This is to certify that {{title}} {{employee_name}} has been employed by our company since {{start_date}} in the position of {{position}}, with a monthly salary of ETB {{salary}}. This letter of work experience is issued at the employee's request.",
       body_am:
         "{{title}} {{employee_name}} በድርጅታችን ከ{{start_date}} ጀምሮ በ{{position}} የሥራ መደብ ላይ በወር ብር {{salary}} ደመወዝ እየተከፈላቸው በማገልገል ላይ መሆናቸውን እየገለጽን፣ ይህ የሥራ ልምድ ማረጋገጫ በጠየቁት መሠረት የተሰጠ መሆኑን እናሳውቃለን።",
       fields: [
@@ -83,6 +86,9 @@ export function buildSeed(): MockDb {
       title_en: "Salary confirmation (for a bank)",
       category: "HR / Banking",
       subject_am: "የደመወዝ ማረጋገጫ ስለመስጠት",
+      subject_en: "Salary Confirmation",
+      body_en:
+        "This is to confirm that {{title}} {{employee_name}} is employed by our company in the position of {{position}}, with a gross monthly salary of ETB {{gross_salary}}. This confirmation is issued for the purpose of {{purpose}}.",
       body_am:
         "{{title}} {{employee_name}} በድርጅታችን በ{{position}} የሥራ መደብ ላይ ተቀጥረው የሚሠሩ ሲሆን ወርሃዊ ጠቅላላ ደመወዛቸው ብር {{gross_salary}} መሆኑን እናረጋግጣለን። ይህ ማረጋገጫ ለ{{purpose}} እንዲያገለግል የተሰጠ ነው።",
       fields: [
@@ -117,6 +123,9 @@ export function buildSeed(): MockDb {
       title_en: "Meeting invitation",
       category: "Administration",
       subject_am: "የስብሰባ ጥሪ",
+      subject_en: "Invitation to a Meeting",
+      body_en:
+        "A meeting on {{meeting_topic}} will be held on {{meeting_date}} at {{meeting_time}} at {{venue}}. We kindly request your attendance.",
       body_am:
         "{{meeting_topic}}ን አስመልክቶ {{meeting_date}} {{meeting_time}} ሰዓት በ{{venue}} ስብሰባ ስለሚካሄድ፣ በስብሰባው ላይ እንድትገኙልን በአክብሮት እንጠይቃለን።",
       fields: [
@@ -138,6 +147,9 @@ export function buildSeed(): MockDb {
       title_en: "Annual leave request",
       category: "HR",
       subject_am: "የዓመት ፈቃድ ስለመጠየቅ",
+      subject_en: "Request for Annual Leave",
+      body_en:
+        "I, {{employee_name}}, working in the {{department}} department as {{position}}, kindly request permission to take my annual leave for {{days}} days, from {{from_date}} to {{to_date}}.",
       body_am:
         "እኔ {{employee_name}} በ{{department}} ክፍል በ{{position}} የሥራ መደብ ላይ የምሠራ ሲሆን፣ ከ{{from_date}} እስከ {{to_date}} ድረስ ለ{{days}} ቀናት የዓመት ፈቃዴን እንድወስድ እንዲፈቀድልኝ በአክብሮት እጠይቃለሁ።",
       fields: [
@@ -173,6 +185,9 @@ export function buildSeed(): MockDb {
       title_en: "Request for quotation",
       category: "Procurement",
       subject_am: "የዋጋ ማቅረቢያ ስለመጠየቅ",
+      subject_en: "Request for Price Quotation",
+      body_en:
+        "Our company intends to purchase {{items}}. We kindly request you to submit your price quotation, including VAT, by {{deadline}}.",
       body_am:
         "ድርጅታችን {{items}} ለመግዛት ስለሚፈልግ፣ ቫትን ጨምሮ የዋጋ ማቅረቢያችሁን እስከ {{deadline}} ድረስ እንድታቀርቡልን በአክብሮት እንጠይቃለን።",
       fields: [
@@ -192,6 +207,9 @@ export function buildSeed(): MockDb {
       title_en: "Payment request",
       category: "Finance",
       subject_am: "ክፍያ ስለመጠየቅ",
+      subject_en: "Request for Payment",
+      body_en:
+        "The amount of ETB {{amount}}, invoiced on {{invoice_date}} under invoice number {{invoice_number}}, has not been paid to date. We kindly request you to settle the payment by {{due_date}}.",
       body_am:
         "በ{{invoice_date}} በደረሰኝ ቁጥር {{invoice_number}} የተጠየቀው ብር {{amount}} እስካሁን ያልተከፈለ በመሆኑ፣ ክፍያውን እስከ {{due_date}} ድረስ እንድትፈጽሙልን በአክብሮት እንጠይቃለን።",
       fields: [

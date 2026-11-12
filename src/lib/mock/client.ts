@@ -233,6 +233,8 @@ function defaults(name: string): Row {
         category: "General",
         subject_am: "",
         body_am: "",
+        subject_en: "",
+        body_en: "",
         fields: [],
         is_active: true,
         created_at: now,
@@ -247,6 +249,8 @@ function defaults(name: string): Row {
       };
     case "contacts":
       return { title: "", organization_name: "", city: "", type: "recipient", created_at: now };
+    case "translations":
+      return { updated_at: now };
     case "ai_generations":
       return { output: null, final_text: null, edit_ratio: null, mock: false, created_at: now };
     default:

@@ -1,13 +1,33 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { Copy, FileDown, Paperclip, Pencil, Printer } from "lucide-react";
+import { Copy, FileDown, Languages, Paperclip, Pencil, Printer } from "lucide-react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { AppShell, StatusBadge } from "@/components/AppShell";
+import { EnglishCheck, type EnglishRow } from "@/components/EnglishCheck";
 import { LetterSheet, ScaledSheet } from "@/components/LetterSheet";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useLetter, useLetterEvents, useSignatories, type LetterRow, type Me } from "@/lib/data";
+import {
+  asRecord,
+  saveTranslations,
+  useLetter,
+  useLetterEvents,
+  useSignatories,
+  useTemplates,
+  useTranslations,
+  type LetterRow,
+  type Me,
+} from "@/lib/data";
+import {
+  amharicEdited,
+  buildEnglish,
+  englishItems,
+  hasEthiopic,
+  normalizeAm,
+  suggestEnglish,
+} from "@/lib/english";
 import { formatGregorian, isoToEthiopianString } from "@/lib/ethiopianCalendar";
 import { useT } from "@/lib/i18n";
 import { duplicateLetter, exportDocx, printLetter, toContent } from "@/lib/letterActions";
@@ -16,6 +36,9 @@ import { useSignedUrl } from "@/lib/storage";
 export const Route = createFileRoute("/letters/$id/")({
   ssr: false,
   head: () => ({ meta: [{ title: "Letter · Debdabe" }] }),
+  // ?lang=en opens the English version directly (used by the editor's English button).
+  validateSearch: (s: Record<string, unknown>): { lang?: "en" } =>
+    s["lang"] === "en" ? { lang: "en" } : {},
   component: DetailPage,
 });
 
@@ -52,8 +75,66 @@ function Detail({ me, letter }: { me: Me; letter: LetterRow }) {
   const signatories = useSignatories();
   const events = useLetterEvents(letter.id);
   const fileUrl = useSignedUrl("incoming-letters", letter.file_url);
-  const content = toContent(letter, signatories.data, me.org);
+  const amharic = toContent(letter, signatories.data, me.org);
   const incoming = letter.direction === "incoming";
+  const templates = useTemplates();
+  const memory = useTranslations();
+  const { lang: startLang } = Route.useSearch();
+  const [lang, setLang] = useState<"am" | "en">(startLang ?? "am");
+  const [typed, setTyped] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+
+  const template = templates.data?.find((x) => x.id === letter.template_id) ?? null;
+  const values = asRecord(letter.field_values);
+  const englishReady = !!template?.body_en?.trim();
+
+  // English suggestion for every fact; what the user typed wins.
+  const rows: EnglishRow[] = useMemo(() => {
+    if (!template || !englishReady) return [];
+    const mem = memory.data ?? new Map<string, string>();
+    return englishItems({ template, values, content: amharic }).map((item) => {
+      const s = suggestEnglish(item.am, item.kind, mem, item.preset);
+      const own = typed[item.id];
+      return own != null
+        ? { ...item, ...s, value: own, edited: true }
+        : { ...item, ...s, edited: false };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [template, englishReady, memory.data, typed, letter, signatories.data]);
+
+  const showEnglish = lang === "en" && !!template && englishReady;
+  const content = showEnglish
+    ? buildEnglish(amharic, template, values, Object.fromEntries(rows.map((r) => [r.id, r.value])))
+    : amharic;
+
+  /** English words to remember: Amharic facts whose English isn't saved yet. */
+  const toSave = rows
+    .filter((r) => hasEthiopic(r.am) && r.value.trim() && r.source !== "settings")
+    .map((r) => ({ source: normalizeAm(r.am), target: r.value.trim() }))
+    .filter((p) => memory.data?.get(p.source) !== p.target);
+
+  async function saveEnglish(quiet = false) {
+    if (!toSave.length) return;
+    setSaving(true);
+    try {
+      await saveTranslations(me.org.id, toSave);
+      await qc.invalidateQueries({ queryKey: ["translations"] });
+      setTyped({});
+      if (!quiet) toast.success(t("English words saved", "የእንግሊዝኛ ቃላት ተቀምጠዋል"));
+    } catch (e) {
+      toast.error(
+        t(
+          `Couldn't save the English words: ${(e as Error).message}`,
+          `የእንግሊዝኛ ቃላትን ማስቀመጥ አልተቻለም፡ ${(e as Error).message}`,
+        ),
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  /** Before printing or downloading the English letter, remember its words. */
+  const beforeOutput = () => (showEnglish ? saveEnglish(true) : Promise.resolve());
 
   async function onDuplicate() {
     try {
@@ -77,7 +158,7 @@ function Detail({ me, letter }: { me: Me; letter: LetterRow }) {
           [t("Their reference", "የእነሱ ቁጥር"), letter.their_reference ?? ""],
           [t("Assigned to", "የተመደበለት"), letter.assigned_to ?? ""],
         ] as [string, React.ReactNode][])
-      : ([[t("To", "ለ"), content.recipient.name ?? ""]] as [string, React.ReactNode][])),
+      : ([[t("To", "ለ"), amharic.recipient.name ?? ""]] as [string, React.ReactNode][])),
     ...(letter.edit_ratio != null
       ? ([
           [t("AI edit rate", "የAI ማስተካከያ መጠን"), `${Math.round(Number(letter.edit_ratio) * 100)}%`],
@@ -114,14 +195,22 @@ function Detail({ me, letter }: { me: Me; letter: LetterRow }) {
             <>
               <Button
                 variant="outline"
-                onClick={() => printLetter(letter.id, me.org.id).then(() => events.refetch())}
+                onClick={() =>
+                  beforeOutput()
+                    .then(() => printLetter(letter.id, me.org.id))
+                    .then(() => events.refetch())
+                }
               >
                 <Printer />
                 {t("Print / PDF", "አትም / PDF")}
               </Button>
               <Button
                 variant="outline"
-                onClick={() => exportDocx(me.org, content, letter.id).then(() => events.refetch())}
+                onClick={() =>
+                  beforeOutput()
+                    .then(() => exportDocx(me.org, content, letter.id))
+                    .then(() => events.refetch())
+                }
               >
                 <FileDown />
                 DOCX
@@ -141,6 +230,60 @@ function Detail({ me, letter }: { me: Me; letter: LetterRow }) {
             </Button>
           )}
         </div>
+
+        {!incoming && (
+          <div className="grid gap-2">
+            <div
+              role="group"
+              aria-label={t("Letter language", "የደብዳቤው ቋንቋ")}
+              className="flex items-center gap-2"
+            >
+              <Languages className="size-4 text-muted-foreground" />
+              <Button
+                size="sm"
+                variant={lang === "am" ? "default" : "outline"}
+                aria-pressed={lang === "am"}
+                onClick={() => setLang("am")}
+              >
+                አማርኛ
+              </Button>
+              <Button
+                size="sm"
+                variant={lang === "en" ? "default" : "outline"}
+                aria-pressed={lang === "en"}
+                onClick={() => setLang("en")}
+              >
+                English
+              </Button>
+            </div>
+            {lang === "en" && !template && (
+              <p className="rounded-md border p-3 text-sm text-muted-foreground">
+                {t(
+                  "This letter wasn't made from a template, so there is no English version.",
+                  "ይህ ደብዳቤ ከአብነት ስላልተዘጋጀ የእንግሊዝኛ ቅጂ የለውም።",
+                )}
+              </p>
+            )}
+            {lang === "en" && template && !englishReady && (
+              <p className="rounded-md border p-3 text-sm text-muted-foreground">
+                {t(
+                  "This template has no English wording yet. An admin can add it on the Templates page.",
+                  "ይህ አብነት የእንግሊዝኛ አገላለጽ የለውም። አስተዳዳሪ በአብነቶች ገጽ ላይ ሊጨምረው ይችላል።",
+                )}
+              </p>
+            )}
+            {showEnglish && (
+              <EnglishCheck
+                rows={rows}
+                onChange={(id, v) => setTyped((x) => ({ ...x, [id]: v }))}
+                onSave={() => saveEnglish()}
+                saving={saving}
+                unsaved={toSave.length}
+                edited={amharicEdited(amharic, template, values)}
+              />
+            )}
+          </div>
+        )}
 
         <section className="rounded-lg border bg-card p-4">
           <h2 className="mb-2 font-sans text-sm font-semibold uppercase tracking-wide text-muted-foreground">

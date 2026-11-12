@@ -10,12 +10,19 @@ import {
 } from "docx";
 
 import { supabase } from "@/integrations/supabase/client";
-import { signatureFor, type LetterContent } from "@/components/LetterSheet";
+import { SHEET_TEXT, sheetDate, signatureFor, type LetterContent } from "@/components/LetterSheet";
 import type { Org } from "./data";
-import { isoToEthiopianString } from "./ethiopianCalendar";
 
-const FONT = { ascii: "Nyala", hAnsi: "Nyala", eastAsia: "Nyala", cs: "Nyala" };
+const AM_FONT = { ascii: "Nyala", hAnsi: "Nyala", eastAsia: "Nyala", cs: "Nyala" };
+/** English letters use a Latin font; Amharic words in them still fall back to Nyala. */
+const EN_FONT = {
+  ascii: "Times New Roman",
+  hAnsi: "Times New Roman",
+  eastAsia: "Nyala",
+  cs: "Nyala",
+};
 const SIZE = 24; // half-points = 12pt
+let FONT = AM_FONT;
 
 function run(text: string, opts: Omit<IRunOptions, "text"> = {}) {
   return new TextRun({ text, font: FONT, size: SIZE, ...opts });
@@ -60,6 +67,11 @@ export async function buildLetterDocx(org: Org, l: LetterContent): Promise<Blob>
     loadImage("signatures", signatureFor(l)),
   ]);
 
+  const en = l.lang === "en";
+  const L = SHEET_TEXT[en ? "en" : "am"];
+  FONT = en ? EN_FONT : AM_FONT;
+  const orgMain = en ? l.sender.org_name_en || l.sender.org_name_am : l.sender.org_name_am;
+  const orgSub = en ? (l.sender.org_name_en ? l.sender.org_name_am : "") : l.sender.org_name_en;
   const children: Paragraph[] = [];
 
   if (header) {
@@ -67,14 +79,14 @@ export async function buildLetterDocx(org: Org, l: LetterContent): Promise<Blob>
   } else {
     children.push(
       new Paragraph({
-        children: [run(l.sender.org_name_am, { bold: true, size: 28, color: "23305A" })],
+        children: [run(orgMain, { bold: true, size: 28, color: "23305A" })],
       }),
       new Paragraph({
         border: { bottom: { style: "single", size: 12, color: "23305A", space: 4 } },
         children: [
           run(
             [
-              l.sender.org_name_en,
+              orgSub,
               l.sender.address,
               l.sender.phone,
               l.sender.email,
@@ -96,13 +108,16 @@ export async function buildLetterDocx(org: Org, l: LetterContent): Promise<Blob>
     new Paragraph({
       alignment: AlignmentType.RIGHT,
       spacing: { before: 240 },
-      children: [run(`ቁጥር፡ ${l.referenceNo ?? "________"}`)],
+      children: [run(`${L.ref} ${l.referenceNo ?? "________"}`)],
     }),
     new Paragraph({
       alignment: AlignmentType.RIGHT,
-      children: [run(`ቀን፡ ${isoToEthiopianString(l.dateIso)}`)],
+      children: [run(`${L.date} ${sheetDate(l)}`)],
     }),
-    new Paragraph({ spacing: { before: 240 }, children: [run(`ለ፡ ${l.recipient.name ?? ""}`)] }),
+    new Paragraph({
+      spacing: { before: 240 },
+      children: [run(`${L.to} ${l.recipient.name ?? ""}`)],
+    }),
   );
   if (l.recipient.title) children.push(new Paragraph({ children: [run(l.recipient.title)] }));
   if (l.recipient.city)
@@ -112,7 +127,10 @@ export async function buildLetterDocx(org: Org, l: LetterContent): Promise<Blob>
     new Paragraph({
       alignment: AlignmentType.CENTER,
       spacing: { before: 240, after: 240 },
-      children: [run("ጉዳዩ፡ ", { bold: true }), run(l.subject, { bold: true, underline: {} })],
+      children: [
+        run(`${L.subject} `, { bold: true }),
+        run(l.subject, { bold: true, underline: {} }),
+      ],
     }),
   );
 
@@ -132,7 +150,7 @@ export async function buildLetterDocx(org: Org, l: LetterContent): Promise<Blob>
       indent: { left: 5200 },
       spacing: { before: 360 },
       keepNext: true,
-      children: [run("ከሰላምታ ጋር")],
+      children: [run(L.closing)],
     }),
   );
   if (signature) {
@@ -158,7 +176,7 @@ export async function buildLetterDocx(org: Org, l: LetterContent): Promise<Blob>
       new Paragraph({
         spacing: { before: 360 },
         keepNext: true,
-        children: [run("ግልባጭ፡", { size: 22 })],
+        children: [run(L.cc, { size: 22 })],
       }),
     );
     l.cc.forEach((c) =>

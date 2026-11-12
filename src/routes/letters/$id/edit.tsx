@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { Copy, FileDown, Loader2, Lock, Printer, Save, X } from "lucide-react";
+import { Copy, FileDown, Languages, Loader2, Lock, Printer, Save, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -134,6 +134,19 @@ function Editor({ me, letter }: { me: Me; letter: LetterRow }) {
       .eq("id", letter.id);
     if (error) throw error;
     if (!quiet) toast.success(t("Draft saved", "ረቂቁ ተቀምጧል"));
+  }
+
+  /** Save the draft, then open the letter page in English. */
+  async function onEnglish() {
+    setBusy("save");
+    try {
+      await save(true);
+      await qc.invalidateQueries({ queryKey: ["letter", letter.id] });
+      navigate({ to: "/letters/$id", params: { id: letter.id }, search: { lang: "en" } });
+    } catch (e) {
+      toast.error((e as Error).message);
+      setBusy(null);
+    }
   }
 
   async function onSave() {
@@ -467,6 +480,10 @@ function Editor({ me, letter }: { me: Me; letter: LetterRow }) {
           >
             {busy === "final" ? <Loader2 className="animate-spin" /> : <Lock />}
             {t("Finalize & number", "አጠናቅ እና ቁጥር ስጥ")}
+          </Button>
+          <Button variant="outline" onClick={onEnglish} disabled={busy !== null}>
+            <Languages />
+            English
           </Button>
           <Button variant="ghost" onClick={() => printLetter(null, me.org.id)}>
             <Printer />
