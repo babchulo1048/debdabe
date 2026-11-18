@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import {
+  BadgeCheck,
   BookOpen,
   CreditCard,
   FilePlus2,
@@ -17,11 +18,18 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
-import { isAdmin, useMe, type Me } from "@/lib/data";
+import { isAdmin, useIsPlatformAdmin, useMe, type Me } from "@/lib/data";
 import { useT } from "@/lib/i18n";
 import { useSession } from "@/lib/session";
 
-type NavItem = { to: string; en: string; am: string; icon: typeof FileText; admin?: boolean };
+type NavItem = {
+  to: string;
+  en: string;
+  am: string;
+  icon: typeof FileText;
+  admin?: boolean;
+  platform?: boolean;
+};
 
 const NAV: NavItem[] = [
   { to: "/", en: "Dashboard", am: "ዳሽቦርድ", icon: LayoutDashboard },
@@ -30,6 +38,13 @@ const NAV: NavItem[] = [
   { to: "/templates", en: "Templates", am: "አብነቶች", icon: FileText, admin: true },
   { to: "/settings", en: "Settings", am: "ቅንብሮች", icon: Settings, admin: true },
   { to: "/billing", en: "Plan & billing", am: "ዕቅድ እና ክፍያ", icon: CreditCard },
+  {
+    to: "/admin/payments",
+    en: "Approve payments",
+    am: "ክፍያ ማጽደቅ",
+    icon: BadgeCheck,
+    platform: true,
+  },
 ];
 
 /** Signed-in layout: redirects to /login when there is no session. */
@@ -37,6 +52,7 @@ export function AppShell({ children }: { children: (me: Me) => ReactNode }) {
   const session = useSession();
   const navigate = useNavigate();
   const me = useMe();
+  const platformAdmin = useIsPlatformAdmin();
   const qc = useQueryClient();
   const { lang, setLang, t } = useT();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -68,7 +84,9 @@ export function AppShell({ children }: { children: (me: Me) => ReactNode }) {
   }
 
   const data = me.data;
-  const items = NAV.filter((n) => !n.admin || isAdmin(data.role));
+  const items = NAV.filter(
+    (n) => (!n.admin || isAdmin(data.role)) && (!n.platform || platformAdmin.data === true),
+  );
 
   async function signOut() {
     setMenuOpen(false);

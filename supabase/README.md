@@ -15,6 +15,7 @@ supabase.com → **New project**, in your **personal** organization.
 |---|---|---|
 | `migrations/20261106120000_init.sql` | Tables, security rules (RLS), letter numbering, signup, file buckets | once |
 | `migrations/20261112120000_english_letters.sql` | English wording on templates, plus each company's translation memory | safe to re-run |
+| `migrations/20261118120000_payments.sql` | Payments checked with Verify Mela (testing), platform admins, approve/reject, plan lock. Then add yourself to `platform_admins` (see top of file) | safe to re-run |
 | `seed/00_templates.sql` | The 6 built-in letter templates (fixed ids the model uses) | safe to re-run |
 | `seed/01_demo.sql` | Demo company "Namuna Trading" with sample letters | once, optional |
 

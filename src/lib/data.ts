@@ -11,6 +11,7 @@ export type TemplateRow = Tables<"templates">;
 export type Signatory = Tables<"signatories">;
 export type Contact = Tables<"contacts">;
 export type Invoice = Tables<"invoices">;
+export type Payment = Tables<"payments">;
 export type Role = "owner" | "admin" | "writer";
 
 // ---- JSON column helpers -------------------------------------------------
@@ -184,6 +185,34 @@ export function useInvoices() {
       if (error) throw error;
       return data;
     },
+  });
+}
+
+/** Payments this org submitted (or, for a platform admin, every org's payments). */
+export function usePayments() {
+  return useQuery({
+    queryKey: ["payments"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("payments")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+/** True for Debdabe staff who approve payments (the platform_admins table). */
+export function useIsPlatformAdmin() {
+  return useQuery({
+    queryKey: ["platform-admin"],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("is_platform_admin");
+      if (error) return false;
+      return data === true;
+    },
+    staleTime: 5 * 60_000,
   });
 }
 

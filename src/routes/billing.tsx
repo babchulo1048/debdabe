@@ -8,10 +8,22 @@ import { AppShell, PageTitle, UsageMeter } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { isAdmin, useInvoices, useMonthlyUsage, type Invoice, type Me } from "@/lib/data";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  isAdmin,
+  useInvoices,
+  useMonthlyUsage,
+  usePayments,
+  type Invoice,
+  type Me,
+} from "@/lib/data";
 import { formatGregorian, isoToEthiopianString } from "@/lib/ethiopianCalendar";
 import { useT } from "@/lib/i18n";
 import { formatMoney, PLANS, VAT_RATE, type PlanKey } from "@/lib/letters";
+import type { Json } from "@/integrations/supabase/types";
+import { checkReceipt, lookupErrorText, PAY_METHODS, type PayMethod } from "@/lib/verifyMela";
+import { lookupPayment } from "@/lib/verifyPayment";
 
 export const Route = createFileRoute("/billing")({
   ssr: false,
@@ -50,6 +62,7 @@ function BillingPage() {
             )}
           />
           <Plans me={me} />
+          <MyPayments />
           <Invoices me={me} />
         </>
       )}
@@ -59,19 +72,10 @@ function BillingPage() {
 
 function Plans({ me }: { me: Me }) {
   const { t } = useT();
-  const qc = useQueryClient();
   const usage = useMonthlyUsage();
   const current = me.org.plan;
 
-  async function switchPlan(plan: PlanKey) {
-    const { error } = await supabase.from("organizations").update({ plan }).eq("id", me.org.id);
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-    toast.success(t(`Switched to ${PLANS[plan].name}`, `ወደ ${PLANS[plan].name} ተቀይሯል`));
-    qc.invalidateQueries({ queryKey: ["me"] });
-  }
+  const [paying, setPaying] = useState<PlanKey | null>(null);
 
   return (
     <div className="grid gap-4">
@@ -115,8 +119,8 @@ function Plans({ me }: { me: Me }) {
                 ))}
               </ul>
               {!active && isAdmin(me.role) && (
-                <Button variant="outline" className="mt-auto" onClick={() => switchPlan(k)}>
-                  {t(`Switch to ${p.name}`, `ወደ ${p.name} ቀይር`)}
+                <Button variant="outline" className="mt-auto" onClick={() => setPaying(k)}>
+                  {t(`Pay for ${p.name}`, `ለ${p.name} ይክፈሉ`)}
                 </Button>
               )}
             </article>
@@ -124,11 +128,17 @@ function Plans({ me }: { me: Me }) {
         })}
       </div>
       <p className="text-xs text-muted-foreground">
+        {me.org.paid_until &&
+          t(
+            `Paid until ${formatGregorian(me.org.paid_until)}. `,
+            `እስከ ${formatGregorian(me.org.paid_until)} ተከፍሏል። `,
+          )}
         {t(
-          "Demo billing: switching plans takes effect immediately and no payment is collected.",
-          "የሙከራ ክፍያ፡ ዕቅድ መቀየር ወዲያውኑ ይሠራል፣ ምንም ክፍያ አይሰበሰብም።",
+          "Testing: pay, paste the SMS, and the plan changes after Debdabe approves the payment.",
+          "ሙከራ፡ ይክፈሉ፣ መልዕክቱን ይለጥፉ፤ ክፍያው ሲጸድቅ ዕቅዱ ይቀየራል።",
         )}
       </p>
+      {paying && <PayDialog me={me} plan={paying} onClose={() => setPaying(null)} />}
     </div>
   );
 }
@@ -265,5 +275,167 @@ function InvoiceDialog({ me, inv, onClose }: { me: Me; inv: Invoice; onClose: ()
         </Button>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Plan price + VAT: what the customer must transfer. */
+function planTotal(plan: PlanKey): number {
+  const price = PLANS[plan].price;
+  return Math.round(price * (1 + VAT_RATE) * 100) / 100;
+}
+
+function PayDialog({ me, plan, onClose }: { me: Me; plan: PlanKey; onClose: () => void }) {
+  const { t } = useT();
+  const qc = useQueryClient();
+  const [method, setMethod] = useState<PayMethod>("telebirr");
+  const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const total = planTotal(plan);
+  const hint = PAY_METHODS.find((m) => m.id === method)?.hint ?? "";
+
+  async function submit() {
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await lookupPayment({ data: { method, msg } });
+      if (!r.ok) {
+        setError(lookupErrorText(r.code, r.message));
+        return;
+      }
+      const rc = r.receipt;
+      const checks = checkReceipt(rc, { amount: total, receiverNames: r.receiverNames });
+      const { error: insErr } = await supabase.from("payments").insert({
+        organization_id: me.org.id,
+        plan,
+        expected_amount: total,
+        method,
+        reference: rc.reference,
+        amount: rc.amount,
+        payer_name: rc.payer.name,
+        receiver_name: rc.receiver.name,
+        receiver_account: rc.receiver.account,
+        paid_at: rc.paidAt,
+        checks: checks as unknown as Json,
+        receipt: rc as unknown as Json,
+      });
+      if (insErr) {
+        setError(
+          insErr.code === "23505"
+            ? t("This payment was already submitted.", "ይህ ክፍያ ቀደም ብሎ ቀርቧል።")
+            : insErr.message,
+        );
+        return;
+      }
+      toast.success(t("Payment received. We will approve it soon.", "ክፍያው ደርሷል። በቅርቡ እናጸድቃለን።"));
+      qc.invalidateQueries({ queryKey: ["payments"] });
+      onClose();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && !busy && onClose()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{t(`Pay for ${PLANS[plan].name}`, `ለ${PLANS[plan].name} ይክፈሉ`)}</DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-4 text-sm">
+          <div className="rounded-md border bg-muted/40 p-3">
+            {t("Transfer", "ያስተላልፉ")}{" "}
+            <span className="font-semibold tabular-nums">{formatMoney(total)}</span>{" "}
+            {t(
+              `birr (${formatMoney(PLANS[plan].price)} + ${VAT_RATE * 100}% VAT) for one month.`,
+              `ብር (${formatMoney(PLANS[plan].price)} + ${VAT_RATE * 100}% ቫት) ለአንድ ወር።`,
+            )}
+          </div>
+          <div className="grid gap-1.5">
+            <Label>{t("Paid with", "የተከፈለበት")}</Label>
+            <div className="flex flex-wrap gap-2">
+              {PAY_METHODS.map((m) => (
+                <Button
+                  key={m.id}
+                  type="button"
+                  size="sm"
+                  variant={m.id === method ? "default" : "outline"}
+                  onClick={() => setMethod(m.id)}
+                >
+                  {m.en}
+                </Button>
+              ))}
+            </div>
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="pay-msg">{t("Payment SMS", "የክፍያ መልዕክት")}</Label>
+            <Textarea
+              id="pay-msg"
+              rows={5}
+              value={msg}
+              onChange={(e) => setMsg(e.target.value)}
+              placeholder={hint}
+            />
+            <p className="text-xs text-muted-foreground">{hint}</p>
+          </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          <Button onClick={submit} disabled={busy || !msg.trim()}>
+            {busy
+              ? t("Checking with the bank…", "ከባንኩ ጋር በማረጋገጥ ላይ…")
+              : t("Submit payment", "ክፍያ አስገባ")}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function MyPayments() {
+  const { t } = useT();
+  const payments = usePayments();
+  if (!payments.data?.length) return null;
+  const label = (s: string) =>
+    s === "approved"
+      ? t("Approved", "ጸድቋል")
+      : s === "rejected"
+        ? t("Rejected", "ውድቅ ተደርጓል")
+        : t("Waiting for approval", "ማጽደቅ በመጠበቅ ላይ");
+  const tone = (s: string) =>
+    s === "approved"
+      ? "bg-success/15 text-success"
+      : s === "rejected"
+        ? "bg-destructive/15 text-destructive"
+        : "bg-warning/15 text-warning";
+  return (
+    <section className="mt-8">
+      <h2 className="mb-3 text-lg">{t("Payments", "ክፍያዎች")}</h2>
+      <div className="overflow-x-auto rounded-lg border bg-card">
+        <table className="w-full text-sm">
+          <tbody>
+            {payments.data.map((p) => (
+              <tr key={p.id} className="border-b last:border-0">
+                <td className="whitespace-nowrap px-4 py-2.5">{formatGregorian(p.created_at)}</td>
+                <td className="px-4 py-2.5 capitalize">{p.plan}</td>
+                <td className="px-4 py-2.5">
+                  {p.method} · <span className="font-mono">{p.reference}</span>
+                </td>
+                <td className="px-4 py-2.5 text-right tabular-nums">
+                  {p.amount == null ? "–" : formatMoney(p.amount)}
+                </td>
+                <td className="px-4 py-2.5">
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${tone(p.status)}`}
+                  >
+                    {label(p.status)}
+                  </span>
+                  {p.note && <span className="ml-2 text-xs text-muted-foreground">{p.note}</span>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }

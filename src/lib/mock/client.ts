@@ -191,6 +191,7 @@ const ORG_DEFAULTS: Row = {
   dept: "",
   reset_yearly: true,
   plan: "basic",
+  paid_until: null,
 };
 
 function defaults(name: string): Row {
@@ -251,6 +252,17 @@ function defaults(name: string): Row {
       return { title: "", organization_name: "", city: "", type: "recipient", created_at: now };
     case "translations":
       return { updated_at: now };
+    case "payments":
+      return {
+        status: "pending",
+        note: null,
+        checks: {},
+        receipt: {},
+        submitted_by: currentUserId(),
+        reviewed_by: null,
+        reviewed_at: null,
+        created_at: now,
+      };
     case "ai_generations":
       return { output: null, final_text: null, edit_ratio: null, mock: false, created_at: now };
     default:
@@ -552,6 +564,49 @@ async function rpc(fn: string, args: Record<string, unknown>): Promise<Result> {
     });
     save();
     return { data: id, error: null };
+  }
+
+  // Payments (testing): in mock mode the signed-in user is also the platform admin.
+  if (fn === "is_platform_admin") return { data: true, error: null };
+
+  if (fn === "approve_payment" || fn === "reject_payment") {
+    const p = table("payments").find((x) => x["id"] === args["_payment"]);
+    if (!p || p["status"] !== "pending")
+      return { data: null, error: { message: "Payment not found or not pending" } };
+    Object.assign(p, {
+      status: fn === "approve_payment" ? "approved" : "rejected",
+      note: args["_note"] ?? null,
+      reviewed_by: uid,
+      reviewed_at: now,
+    });
+    if (fn === "approve_payment") {
+      const o = table("organizations").find((x) => x["id"] === p["organization_id"]);
+      const plan = p["plan"] as PlanKey;
+      const startMs = Math.max(
+        Date.now(),
+        o?.["paid_until"] ? Date.parse(String(o["paid_until"])) : 0,
+      );
+      const end = new Date(startMs);
+      end.setMonth(end.getMonth() + 1);
+      if (o) Object.assign(o, { plan, paid_until: end.toISOString() });
+      const price = PLANS[plan].price;
+      const vat = Math.round(price * 0.15 * 100) / 100;
+      table("invoices").push({
+        id: crypto.randomUUID(),
+        organization_id: p["organization_id"],
+        number: `DB-${now.slice(0, 10).replace(/-/g, "")}-${String(p["id"]).slice(0, 6).toUpperCase()}`,
+        period_start: new Date(startMs).toISOString().slice(0, 10),
+        period_end: end.toISOString().slice(0, 10),
+        plan,
+        amount: price,
+        vat,
+        total: price + vat,
+        status: "paid",
+        paid_at: p["paid_at"] ?? now,
+      });
+    }
+    save();
+    return { data: null, error: null };
   }
 
   return { data: null, error: { message: `Unknown function ${fn}` } };

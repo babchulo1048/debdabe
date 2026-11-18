@@ -34,3 +34,6 @@ dist-ssr
 # Vercel build output / local env (the app is fully mock, no keys needed)
 .vercel
 .env
+
+# Model files (from Google Drive / Hugging Face), too big for git
+model-server/model_round*/

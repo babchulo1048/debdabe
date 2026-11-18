@@ -15,6 +15,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as TemplatesRouteImport } from './routes/templates'
+import { Route as AdminPaymentsRouteImport } from './routes/admin/payments'
 import { Route as LettersNewRouteImport } from './routes/letters/new'
 import { Route as LettersIdIndexRouteImport } from './routes/letters/$id/index'
 import { Route as LettersIdEditRouteImport } from './routes/letters/$id/edit'
@@ -49,6 +50,11 @@ const TemplatesRoute = TemplatesRouteImport.update({
   path: '/templates',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminPaymentsRoute = AdminPaymentsRouteImport.update({
+  id: '/admin/payments',
+  path: '/admin/payments',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LettersNewRoute = LettersNewRouteImport.update({
   id: '/letters/new',
   path: '/letters/new',
@@ -72,6 +78,7 @@ export interface FileRoutesByFullPath {
   '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
   '/templates': typeof TemplatesRoute
+  '/admin/payments': typeof AdminPaymentsRoute
   '/letters/new': typeof LettersNewRoute
   '/letters/$id/edit': typeof LettersIdEditRoute
   '/letters/$id/': typeof LettersIdIndexRoute
@@ -83,6 +90,7 @@ export interface FileRoutesByTo {
   '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
   '/templates': typeof TemplatesRoute
+  '/admin/payments': typeof AdminPaymentsRoute
   '/letters/new': typeof LettersNewRoute
   '/letters/$id/edit': typeof LettersIdEditRoute
   '/letters/$id': typeof LettersIdIndexRoute
@@ -95,6 +103,7 @@ export interface FileRoutesById {
   '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
   '/templates': typeof TemplatesRoute
+  '/admin/payments': typeof AdminPaymentsRoute
   '/letters/new': typeof LettersNewRoute
   '/letters/$id/edit': typeof LettersIdEditRoute
   '/letters/$id/': typeof LettersIdIndexRoute
@@ -108,6 +117,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/settings'
     | '/templates'
+    | '/admin/payments'
     | '/letters/new'
     | '/letters/$id/edit'
     | '/letters/$id/'
@@ -119,6 +129,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/settings'
     | '/templates'
+    | '/admin/payments'
     | '/letters/new'
     | '/letters/$id/edit'
     | '/letters/$id'
@@ -130,6 +141,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/settings'
     | '/templates'
+    | '/admin/payments'
     | '/letters/new'
     | '/letters/$id/edit'
     | '/letters/$id/'
@@ -142,6 +154,7 @@ export interface RootRouteChildren {
   RegisterRoute: typeof RegisterRoute
   SettingsRoute: typeof SettingsRoute
   TemplatesRoute: typeof TemplatesRoute
+  AdminPaymentsRoute: typeof AdminPaymentsRoute
   LettersNewRoute: typeof LettersNewRoute
   LettersIdEditRoute: typeof LettersIdEditRoute
   LettersIdIndexRoute: typeof LettersIdIndexRoute
@@ -191,6 +204,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TemplatesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/payments': {
+      id: '/admin/payments'
+      path: '/admin/payments'
+      fullPath: '/admin/payments'
+      preLoaderRoute: typeof AdminPaymentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/letters/new': {
       id: '/letters/new'
       path: '/letters/new'
@@ -222,6 +242,7 @@ const rootRouteChildren: RootRouteChildren = {
   RegisterRoute: RegisterRoute,
   SettingsRoute: SettingsRoute,
   TemplatesRoute: TemplatesRoute,
+  AdminPaymentsRoute: AdminPaymentsRoute,
   LettersNewRoute: LettersNewRoute,
   LettersIdEditRoute: LettersIdEditRoute,
   LettersIdIndexRoute: LettersIdIndexRoute,

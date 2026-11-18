@@ -353,6 +353,7 @@ export type Database = {
           name_am: string;
           name_en: string;
           phone: string | null;
+          paid_until: string | null;
           plan: Database["public"]["Enums"]["plan_tier"];
           ref_pattern: string;
           ref_prefix: string;
@@ -372,6 +373,7 @@ export type Database = {
           name_am?: string;
           name_en?: string;
           phone?: string | null;
+          paid_until?: string | null;
           plan?: Database["public"]["Enums"]["plan_tier"];
           ref_pattern?: string;
           ref_prefix?: string;
@@ -391,6 +393,7 @@ export type Database = {
           name_am?: string;
           name_en?: string;
           phone?: string | null;
+          paid_until?: string | null;
           plan?: Database["public"]["Enums"]["plan_tier"];
           ref_pattern?: string;
           ref_prefix?: string;
@@ -398,6 +401,80 @@ export type Database = {
           tin?: string | null;
         };
         Relationships: [];
+      };
+      payments: {
+        Row: {
+          amount: number | null;
+          checks: Json;
+          created_at: string;
+          expected_amount: number;
+          id: string;
+          method: string;
+          note: string | null;
+          organization_id: string;
+          paid_at: string | null;
+          payer_name: string | null;
+          plan: Database["public"]["Enums"]["plan_tier"];
+          receipt: Json;
+          receiver_account: string | null;
+          receiver_name: string | null;
+          reference: string;
+          reviewed_at: string | null;
+          reviewed_by: string | null;
+          status: string;
+          submitted_by: string | null;
+        };
+        Insert: {
+          amount?: number | null;
+          checks?: Json;
+          created_at?: string;
+          expected_amount: number;
+          id?: string;
+          method: string;
+          note?: string | null;
+          organization_id: string;
+          paid_at?: string | null;
+          payer_name?: string | null;
+          plan: Database["public"]["Enums"]["plan_tier"];
+          receipt?: Json;
+          receiver_account?: string | null;
+          receiver_name?: string | null;
+          reference: string;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          status?: string;
+          submitted_by?: string | null;
+        };
+        Update: {
+          amount?: number | null;
+          checks?: Json;
+          created_at?: string;
+          expected_amount?: number;
+          id?: string;
+          method?: string;
+          note?: string | null;
+          organization_id?: string;
+          paid_at?: string | null;
+          payer_name?: string | null;
+          plan?: Database["public"]["Enums"]["plan_tier"];
+          receipt?: Json;
+          receiver_account?: string | null;
+          receiver_name?: string | null;
+          reference?: string;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          status?: string;
+          submitted_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "payments_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       profiles: {
         Row: {
@@ -603,6 +680,10 @@ export type Database = {
       };
     };
     Functions: {
+      approve_payment: {
+        Args: { _note?: string; _payment: string };
+        Returns: undefined;
+      };
       current_org: { Args: never; Returns: string };
       finalize_letter: {
         Args: { _eth_year: number; _letter: string };
@@ -622,6 +703,7 @@ export type Database = {
         Args: { _roles: Database["public"]["Enums"]["org_role"][] };
         Returns: boolean;
       };
+      is_platform_admin: { Args: never; Returns: boolean };
       next_reference: {
         Args: { _direction: string; _eth_year: number; _org: string };
         Returns: {
@@ -632,6 +714,10 @@ export type Database = {
       plan_limit: {
         Args: { _p: Database["public"]["Enums"]["plan_tier"] };
         Returns: number;
+      };
+      reject_payment: {
+        Args: { _note?: string; _payment: string };
+        Returns: undefined;
       };
       register_incoming: {
         Args: {
