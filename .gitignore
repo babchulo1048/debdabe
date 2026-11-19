@@ -37,3 +37,4 @@ dist-ssr
 
 # Model files (from Google Drive / Hugging Face), too big for git
 model-server/model_round*/
+INSTALL.md
